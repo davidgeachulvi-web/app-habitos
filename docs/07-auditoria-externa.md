@@ -113,7 +113,7 @@ visor 3D (único ESM): badge-coin-3d.js ──imports──▶ coin/coin-*.js  (
 | A-14 | **Árboles muertos en la raíz** (saneado, § 9) | `legacy/www`, `proto`, `proto2`, `tmp-restaurar`, `backup-icono-anterior`, `scripts/out` (~11 MB, 164 archivos) |
 | A-15 | **Docs desincronizados del disco** | Cifras y rutas históricas en `docs/04`, `docs/05` (§ 2) |
 | A-16 | **Skew de versión SW entre `www/` (v170) y copias nativas (v169)** | `diff` de `www/sw.js` vs `ios/App/App/public/sw.js` y Android: solo difiere la versión; la copia nativa quedó desactualizada tras el último bump |
-| A-17 | **Scripts de laboratorio en `scripts/`** | `marco-v4.html/js`, `qa-badges-visual.mjs`, `_fix-template.js` — utilidades de una sola vez sin documentar |
+| A-17 | **Scripts de laboratorio en `scripts/`** | `marco-v4.html/js`, `qa-badges-visual.mjs`, `_fix-template.js` (éste roto sintácticamente y sin referencias — **eliminado el 03/09/2026**) — utilidades de una sola vez sin documentar |
 
 ---
 
@@ -255,7 +255,7 @@ dist/             → build estático que se despliega en Vercel y se copia a Ca
 3. **Verificación**: `npm test` 30/30 en verde; copias nativas `ios/` y `android/` intactas; working tree limpio.
 4. **Hallazgo nuevo registrado**: A-16 (SW nativo v169 vs `www/` v170) — la próxima ejecución de `npm run cap:copy` lo resuelve.
 
-**Pendiente (decisión del responsable):** remoto Git + protección de rama, CI, elección A/B (§ 6–8), y el plan de refactor detallado correspondiente.
+**Pendiente (decisión del responsable):** resuelto en la misma fecha — se eligió la **Opción A** (§ 6 y § 8), se creó el remoto privado `app-habitos`, se protegió `main` (PR + CI) y se añadió CI en GitHub Actions. Decisión completa y plan S1–S7 en `docs/08-decision-estructura.md`.
 
 ---
 

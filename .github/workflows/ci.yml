@@ -1,0 +1,32 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  ci:
+    name: Test + gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Suite de tests (node:test)
+        run: npm test
+
+      - name: Sintaxis de todos los JS de la app
+        run: node scripts/check-sintaxis.js
+
+      - name: Grafo de imports del visor 3D (0 imports bare)
+        run: node scripts/check-imports.js

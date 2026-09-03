@@ -3,9 +3,10 @@
   "version": "1.0.0",
   "description": "AWAKE",
   "private": true,
-  "main": "index.js",
+  "main": "dev-server.js",
   "scripts": {
     "cap:copy": "npx cap copy && node scripts/strip-vercel.js",
+    "check": "node scripts/check-imports.js && node scripts/check-sintaxis.js",
     "deploy:web": "node scripts/check-imports.js && node scripts/bump-sw.js && npx vercel deploy www --prod --yes && npm run cap:copy",
     "dev": "node dev-server.js",
     "test": "node --test test/iconos.test.mjs test/programacion.test.mjs test/smoke.test.mjs test/recordatorios.test.mjs"
