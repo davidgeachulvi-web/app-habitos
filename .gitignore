@@ -1,0 +1,26 @@
+# Dependencias
+node_modules/
+
+# Entorno / secretos — nunca versionar
+.env*
+.env.local
+
+# Vercel local (project link) — www/.vercel y .vercel raíz
+.vercel/
+
+# Logs y runtime del tooling
+*.log
+.freebuff/
+
+# Salidas generadas por scripts (regenerables)
+scripts/out/
+proto/out/
+
+# Capturas de prueba ad-hoc
+chat-test.png
+chat-perfil-test.png
+/*-test.png
+
+# Nota: legacy/, proto/, proto2/, tmp-restaurar/ y backup-icono-anterior/
+# NO están ignorados a propósito: se congelaron en el commit base y después
+# se eliminaron del working tree, quedando recuperables desde el historial.

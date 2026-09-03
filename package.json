@@ -1,0 +1,33 @@
+{
+  "name": "app-habitos",
+  "version": "1.0.0",
+  "description": "AWAKE",
+  "private": true,
+  "main": "index.js",
+  "scripts": {
+    "cap:copy": "npx cap copy && node scripts/strip-vercel.js",
+    "deploy:web": "node scripts/check-imports.js && node scripts/bump-sw.js && npx vercel deploy www --prod --yes && npm run cap:copy",
+    "dev": "node dev-server.js",
+    "test": "node --test test/iconos.test.mjs test/programacion.test.mjs test/smoke.test.mjs test/recordatorios.test.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@capacitor/android": "^8.5.0",
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/cli": "^8.5.0",
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/ios": "^8.5.0",
+    "@capacitor/keyboard": "^8.0.5",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/status-bar": "^8.0.3",
+    "@fontsource/roboto": "^5.3.0",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "@gltf-transform/cli": "^4.4.2"
+  }
+}

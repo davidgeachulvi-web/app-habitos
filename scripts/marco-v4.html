@@ -1,0 +1,11 @@
+    <!-- ===== MARCO COSMICO v4 · minimalista (solo proto2) ===== -->
+    <div id="marco-cosmico" class="marco-cosmico" aria-hidden="true"></div>
+    <button type="button" id="marco-dev-btn" class="marco-dev-btn" title="Laboratorio de marcos (proto2)" aria-label="Abrir laboratorio de marcos" onclick="alternarPanelMarcos(event)">&#9678;</button>
+    <div id="marco-dev-panel" class="marco-dev-panel" role="dialog" aria-label="Laboratorio de marcos" onclick="event.stopPropagation()">
+        <div class="marco-dev-title">Marco</div>
+        <div class="marco-dev-grid">
+            <button type="button" class="marco-dev-opcion" data-variante="linea" onclick="seleccionarMarcoProto('linea')"><span class="marco-dev-muestra mv-linea" aria-hidden="true"></span><span class="marco-dev-opcion-label">Linea</span></button>
+            <button type="button" class="marco-dev-opcion" data-variante="norte" onclick="seleccionarMarcoProto('norte')"><span class="marco-dev-muestra mv-norte" aria-hidden="true"></span><span class="marco-dev-opcion-label">Norte</span></button>
+        </div>
+    </div>
+

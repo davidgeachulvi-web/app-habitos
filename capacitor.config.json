@@ -1,0 +1,56 @@
+{
+  "appId": "app.awake.habits",
+  "appName": "AWAKE",
+  "webDir": "www",
+  "android": {
+    "scheme": "https",
+    "allowMixedContent": false,
+    "includePlugins": [
+      "@capacitor/app",
+      "@capacitor/haptics",
+      "@capacitor/keyboard",
+      "@capacitor/local-notifications",
+      "@capacitor/status-bar"
+    ]
+  },
+  "ios": {
+    "contentInset": "never",
+    "preferredContentMode": "mobile",
+    "backgroundColor": "#000000",
+    "scrollEnabled": false,
+    "includePlugins": [
+      "@capacitor/app",
+      "@capacitor/haptics",
+      "@capacitor/keyboard",
+      "@capacitor/local-notifications",
+      "@capacitor/status-bar"
+    ]
+  },
+  "plugins": {
+    "CapacitorHttp": {
+      "enabled": false
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert", "banner", "list"]
+    },
+    "App": {
+      "disableBackButtonHandler": false
+    },
+    "LocalNotifications": {
+      "iconColor": "#C9D4E8"
+    },
+    "Keyboard": {
+      "resize": "none",
+      "resizeOnFullScreen": true
+    },
+    "StatusBar": {
+      "style": "LIGHT",
+      "backgroundColor": "#000000",
+      "overlaysWebView": true
+    },
+    "SystemBars": {
+      "insetsHandling": "css",
+      "style": "DARK"
+    }
+  }
+}

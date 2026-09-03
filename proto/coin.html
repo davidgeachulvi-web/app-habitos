@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>AWAKE · Prototipo moneda 3D</title>
+<style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { height: 100%; overflow: hidden; }
+    body {
+        background: radial-gradient(130% 100% at 50% 18%, #252b36 0%, #161922 52%, #0a0c10 100%);
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        color: #e9ebf1;
+        -webkit-user-select: none; user-select: none;
+        touch-action: none;
+        -webkit-tap-highlight-color: transparent;
+    }
+    #stage { position: fixed; inset: 0; }
+    #stage canvas { display: block; }
+
+    #hud { position: fixed; inset: 0; pointer-events: none; z-index: 2; }
+    .hud-title {
+        position: absolute; top: max(18px, env(safe-area-inset-top));
+        left: 50%; transform: translateX(-50%);
+        font-weight: 700; font-size: 17px; letter-spacing: 0.22em;
+        text-transform: uppercase; text-align: center;
+        color: #f2d08a;
+        text-shadow: 0 2px 14px rgba(242, 208, 138, 0.25);
+        white-space: nowrap;
+    }
+    .hud-title span { color: rgba(233, 235, 241, 0.55); font-weight: 400; letter-spacing: 0.14em; }
+    .hud-level {
+        position: absolute; top: max(60px, calc(env(safe-area-inset-top) + 42px));
+        left: 50%; transform: translateX(-50%);
+        font-size: 13px; font-weight: 600; letter-spacing: 0.28em;
+        text-shadow: 0 2px 12px rgba(0, 0, 0, 0.65);
+        white-space: nowrap;
+    }
+    .hud-sections {
+        position: absolute; bottom: max(60px, calc(env(safe-area-inset-bottom) + 48px));
+        left: 50%; transform: translateX(-50%);
+        display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;
+        pointer-events: auto;
+    }
+    .sec-btn {
+        pointer-events: auto; cursor: pointer;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: rgba(233, 235, 241, 0.72);
+        font-size: 11px; font-weight: 600; letter-spacing: 0.14em;
+        padding: 7px 15px; border-radius: 999px;
+        text-transform: uppercase;
+        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+        font-family: inherit;
+    }
+    .sec-btn:hover:not(.active) { background: rgba(255, 255, 255, 0.12); }
+    .sec-btn.active {
+        background: rgba(242, 208, 138, 0.16);
+        border-color: rgba(242, 208, 138, 0.55);
+        color: #f2d08a;
+    }
+    .sec-btn:active { transform: scale(0.95); }
+    .nav-btn {
+        position: absolute; top: 50%; transform: translateY(-50%);
+        width: 54px; height: 54px; border-radius: 50%;
+        pointer-events: auto; cursor: pointer;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.16);
+        color: rgba(255, 255, 255, 0.92);
+        font-size: 32px; line-height: 1; padding-bottom: 5px;
+        backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+        transition: background 0.18s ease, border-color 0.18s ease, opacity 0.18s ease, transform 0.18s ease;
+    }
+    #nav-prev { left: max(14px, calc(env(safe-area-inset-left) + 10px)); }
+    #nav-next { right: max(14px, calc(env(safe-area-inset-right) + 10px)); }
+    .nav-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.14); border-color: rgba(255, 255, 255, 0.30); }
+    .nav-btn:active:not(:disabled) { transform: translateY(-50%) scale(0.90); }
+    .nav-btn:disabled { opacity: 0.22; cursor: default; }
+    .hud-hint {
+        position: absolute; bottom: max(20px, calc(env(safe-area-inset-bottom) + 10px));
+        left: 50%; transform: translateX(-50%);
+        font-size: 13px; color: rgba(233, 235, 241, 0.5);
+        letter-spacing: 0.05em; white-space: nowrap;
+    }
+    #reset, #export {
+        position: absolute; bottom: max(16px, calc(env(safe-area-inset-bottom) + 8px));
+        pointer-events: auto; cursor: pointer;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: rgba(233, 235, 241, 0.85);
+        font-size: 12px; letter-spacing: 0.06em;
+        padding: 8px 14px; border-radius: 999px;
+        backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+        transition: background 0.18s ease, border-color 0.18s ease;
+        font-family: inherit;
+    }
+    #reset { right: 16px; }
+    #export { left: 16px; }
+    #reset:hover, #export:hover { background: rgba(255, 255, 255, 0.12); border-color: rgba(255, 255, 255, 0.28); }
+    #reset:active, #export:active { transform: scale(0.96); }
+    #export:disabled { opacity: 0.4; cursor: default; }
+
+    #studio-toggle {
+        position: fixed; top: max(14px, env(safe-area-inset-top));
+        right: max(14px, env(safe-area-inset-right));
+        z-index: 4; pointer-events: auto; cursor: pointer;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.18);
+        color: rgba(233, 235, 241, 0.9);
+        font-size: 11px; font-weight: 650; letter-spacing: 0.08em;
+        padding: 8px 12px; border-radius: 999px;
+        backdrop-filter: blur(8px); font-family: inherit;
+    }
+    #studio-panel {
+        position: fixed; top: max(48px, calc(env(safe-area-inset-top) + 34px));
+        right: max(10px, env(safe-area-inset-right));
+        width: min(292px, calc(100vw - 20px));
+        max-height: min(78vh, calc(100vh - 120px));
+        overflow-y: auto; overflow-x: hidden;
+        z-index: 4; pointer-events: auto;
+        background: rgba(12, 14, 20, 0.88);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 14px; padding: 12px 12px 14px;
+        backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+        box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+        transform: translateX(calc(100% + 24px));
+        opacity: 0; pointer-events: none;
+        transition: transform 0.22s ease, opacity 0.22s ease;
+    }
+    #studio-panel.open { transform: translateX(0); opacity: 1; pointer-events: auto; }
+    #studio-panel h3 {
+        font-size: 10px; font-weight: 750; letter-spacing: 0.14em;
+        text-transform: uppercase; color: #f2d08a; margin: 0 0 10px;
+    }
+    #studio-panel .st-group { margin-bottom: 12px; }
+    #studio-panel .st-group-title {
+        font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+        text-transform: uppercase; color: rgba(233, 235, 241, 0.45);
+        margin-bottom: 6px;
+    }
+    #studio-panel label {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 8px; font-size: 11px; color: rgba(233, 235, 241, 0.78);
+        margin-bottom: 5px;
+    }
+    #studio-panel label span.val {
+        min-width: 38px; text-align: right; font-variant-numeric: tabular-nums;
+        color: rgba(242, 208, 138, 0.9); font-size: 10px;
+    }
+    #studio-panel input[type="range"] { flex: 1; min-width: 0; accent-color: #f2d08a; }
+    #studio-panel input[type="checkbox"] { accent-color: #f2d08a; }
+    .st-row-btns { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 4px; }
+    .st-btn {
+        pointer-events: auto; cursor: pointer;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        color: rgba(233, 235, 241, 0.78);
+        font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
+        padding: 6px 9px; border-radius: 8px; font-family: inherit;
+    }
+    .st-btn:hover { background: rgba(255, 255, 255, 0.11); }
+    .st-btn.active { border-color: rgba(242, 208, 138, 0.5); color: #f2d08a; }
+    #studio-copy-status {
+        font-size: 10px; color: rgba(233, 235, 241, 0.5);
+        min-height: 14px; margin-top: 4px;
+    }
+</style>
+<script type="importmap">
+{
+    "imports": {
+        "three": "./js/vendor/three.module.min.js"
+    }
+}
+</script>
+</head>
+<body>
+<div id="stage"></div>
+<div id="hud">
+    <div class="hud-title">AWAKE <span>· prototipo moneda 3D</span></div>
+    <div class="hud-level" id="hud-level">NIVEL 5 · ORO</div>
+    <div class="hud-sections" id="hud-sections">
+        <button class="sec-btn active" data-sec="sello" type="button" aria-label="Sección Sello">Sello</button>
+        <button class="sec-btn" data-sec="dia" type="button" aria-label="Sección Día">Día</button>
+        <button class="sec-btn" data-sec="racha" type="button" aria-label="Sección Racha">Racha</button>
+        <button class="sec-btn" data-sec="memoria" type="button" aria-label="Sección Memoria">Memoria</button>
+    </div>
+    <div class="hud-hint">Arrastra para girar 360° &nbsp;·&nbsp; Rueda para zoom</div>
+    <button id="nav-prev" class="nav-btn" type="button" aria-label="Metal anterior">‹</button>
+    <button id="nav-next" class="nav-btn" type="button" aria-label="Metal siguiente">›</button>
+    <button id="reset" type="button">⟲ Vista inicial</button>
+    <button id="export" type="button">⬇ Exportar .glb</button></div>
+
+<button id="studio-toggle" type="button" aria-expanded="false" aria-controls="studio-panel">Estudio</button>
+<aside id="studio-panel" aria-label="Panel de iluminación">
+    <h3>Estudio · luces</h3>
+    <div class="st-group">
+        <div class="st-group-title">Vistas</div>
+        <div class="st-row-btns">
+            <button type="button" class="st-btn" data-view="front">Anverso</button>
+            <button type="button" class="st-btn" data-view="back">Reverso</button>
+            <button type="button" class="st-btn" data-view="edge">Canto</button>
+            <button type="button" class="st-btn" data-view="default">Reset</button>
+        </div>
+    </div>
+
+        <div class="st-row-btns" id="env-mode-btns">
+            <button type="button" class="st-btn active" data-env="awake">AWAKE</button>
+            <button type="button" class="st-btn" data-env="room">Room</button>
+        </div>
+        <label>Reflejo env <span class="val" id="val-envMul">—</span><input type="range" id="sl-envMul" min="0.3" max="1.4" step="0.01"></label>
+        <label>Front boost <span class="val" id="val-frontBoost">—</span><input type="range" id="sl-frontBoost" min="0.2" max="1.2" step="0.01"></label>
+        <label>Exposición <span class="val" id="val-exposure">—</span><input type="range" id="sl-exposure" min="0.4" max="1.4" step="0.01"></label>
+    </div>
+    <div class="st-group">
+        <div class="st-group-title">Luces directas</div>
+        <label>Key <span class="val" id="val-key">—</span><input type="range" id="sl-key" min="0" max="4" step="0.05"></label>
+        <label>Fill <span class="val" id="val-fill">—</span><input type="range" id="sl-fill" min="0" max="2.5" step="0.05"></label>
+        <label>Rake anverso <span class="val" id="val-rakeF">—</span><input type="range" id="sl-rakeF" min="0" max="5" step="0.05"></label>
+        <label>Rake reverso <span class="val" id="val-rakeB">—</span><input type="range" id="sl-rakeB" min="0" max="5" step="0.05"></label>
+        <label>Rim <span class="val" id="val-rim">—</span><input type="range" id="sl-rim" min="0" max="1.2" step="0.02"></label>
+        <label>Azimut key <span class="val" id="val-lightAz">—</span><input type="range" id="sl-lightAz" min="0" max="360" step="1"></label>
+        <label>Elevación key <span class="val" id="val-lightEl">—</span><input type="range" id="sl-lightEl" min="5" max="85" step="1"></label>
+    </div>
+    <div class="st-group">
+        <div class="st-group-title">Materiales</div>
+        <label>Rugosidad campo × <span class="val" id="val-fieldRoughnessMul">—</span><input type="range" id="sl-fieldRoughnessMul" min="0.8" max="1.5" step="0.01"></label>
+        <label>Rugosidad relieve × <span class="val" id="val-reliefRoughnessMul">—</span><input type="range" id="sl-reliefRoughnessMul" min="1" max="2" step="0.01"></label>
+        <label>Env relieve × <span class="val" id="val-reliefEnvMul">—</span><input type="range" id="sl-reliefEnvMul" min="0.5" max="1.2" step="0.01"></label>
+        <label>AO relieve <span class="val" id="val-reliefAO">—</span><input type="range" id="sl-reliefAO" min="0.3" max="0.9" step="0.01"></label>
+    </div>
+    <div class="st-group">
+        <div class="st-group-title">Sombras y adaptación</div>
+        <label><span>Sombras</span><input type="checkbox" id="ck-shadow" checked></label>
+        <label>Opacidad sombra <span class="val" id="val-shadowOpacity">—</span><input type="range" id="sl-shadowOpacity" min="0.08" max="0.55" step="0.01"></label>
+        <label><span>Vista adaptativa</span><input type="checkbox" id="ck-viewAdaptive" checked></label>
+        <label>Corte env frontal <span class="val" id="val-frontEnvCut">—</span><input type="range" id="sl-frontEnvCut" min="0" max="0.45" step="0.01"></label>
+    </div>
+    <div class="st-group">
+        <div class="st-group-title">Presets</div>
+        <div class="st-row-btns">
+            <button type="button" class="st-btn" id="btn-load-preset">Cargar metal</button>
+            <button type="button" class="st-btn" id="btn-copy-json">Copiar JSON</button>
+        </div>
+        <div id="studio-copy-status"></div>
+    </div>
+</aside>
+
+
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from './js/vendor/OrbitControls.js';
+import { SVGLoader } from './js/vendor/SVGLoader.js';
+import { GLTFExporter } from './js/vendor/GLTFExporter.js';
+import { GLTFLoader } from './js/vendor/GLTFLoader.js';
+import { DRACOLoader } from './js/vendor/DRACOLoader.js';
+import { makeStudioEnv } from './js/badges/coin-studio.js';
+import { RoomEnvironment } from './js/vendor/RoomEnvironment.js';
+
+// ---------- Renderer ----------
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({
+    antialias: true,
+    alpha: true,
+    powerPreference: 'high-performance'
+});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setSize(stage.clientWidth, stage.clientHeight);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+// Gestión de color explícita (aviso 5): salida en sRGB, tone mapping ACES.
+// Los colores de material se declaran en sRGB y three los convierte a lineal
+// automáticamente (ColorManagement); los datos (roughness/metalness/normales)
+// son escalares, no colores, y se mantienen en espacio lineal.
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 0.88;
+stage.appendChild(renderer.domElement);
+
+// ---------- Escena y cámara ----------
+const scene = new THREE.Scene();
+let shadowDisc = null;
+let coinGroup = null;
+const camera = new THREE.PerspectiveCamera(35, stage.clientWidth / stage.clientHeight, 0.1, 100);
+
+const POLAR = THREE.MathUtils.degToRad(75);
+const AZIMUTH = THREE.MathUtils.degToRad(45);
+const DIST = 5.0;
+function setCameraView() {
+    camera.position.set(
+        DIST * Math.sin(POLAR) * Math.sin(AZIMUTH),
+        DIST * Math.cos(POLAR),
+        DIST * Math.sin(POLAR) * Math.cos(AZIMUTH)
+    );
+    camera.lookAt(0, 0, 0);
+}
+setCameraView();
+
+// ---------- Estudio (definido antes del entorno) ----------
+const STUDIO = {
+    exposure: 0.76,
+    key: 1.18,
+    fill: 0.38,
+    rakeF: 3.35,
+    rakeB: 2.35,
+    rim: 0.22,
+    hemi: 0.07,
+    envMul: 0.74,
+    frontBoost: 0.50,
+    sideBoost: 1.05,
+    ceilingBoost: 0.88,
+    floorBoost: 1.30,
+    shadow: true,
+    shadowOpacity: 0.32,
+    fieldRoughnessMul: 1.08,
+    reliefRoughnessMul: 1.62,
+    reliefEnvMul: 0.70,
+    reliefAO: 0.76,
+    viewAdaptive: true,
+    frontEnvCut: 0.38,
+    frontRakeBoost: 1.85,
+    frontDetail: 0.62,
+    frontCross: 1.05,
+    frontKeyCut: 0.42,
+    frontFillCut: 0.62,
+    lightAz: 58,
+    lightEl: 34,
+    baseEnv: 0.86
+};
+STUDIO.baseEnv = 0.86;
+
+// ---------- Entorno de estudio HDRI procedural ----------
+let envTexture = null;
+let envMode = 'awake';
+const pmremGen = new THREE.PMREMGenerator(renderer);
+
+function disposeEnv() {
+    if (envTexture) {
+        envTexture.dispose();
+        envTexture = null;
+    }
+}
+
+function rebuildEnvironment() {
+    disposeEnv();
+    if (envMode === 'room') {
+        const room = new RoomEnvironment();
+        envTexture = pmremGen.fromScene(room, 0.04).texture;
+        room.traverse(o => {
+            if (o.isMesh) {
+                o.geometry.dispose();
+                o.material.dispose();
+            }
+        });
+    } else {
+        envTexture = makeStudioEnv(renderer, {
+            frontBoost: STUDIO.frontBoost,
+            sideBoost: STUDIO.sideBoost,
+            ceilingBoost: STUDIO.ceilingBoost,
+            floorBoost: STUDIO.floorBoost
+        });
+    }
+    scene.environment = envTexture;
+    applyStudio();
+}
+
+// rebuildEnvironment() se invoca tras definir luces y applyStudio()
+
+const keyLight = new THREE.DirectionalLight(0xfff1dc, 1.0);
+keyLight.position.set(3.5, 5, 4);
+keyLight.castShadow = true;
+keyLight.shadow.mapSize.set(2048, 2048);
+keyLight.shadow.camera.near = 0.5;
+keyLight.shadow.camera.far = 16;
+keyLight.shadow.camera.left = -2.5;
+keyLight.shadow.camera.right = 2.5;
+keyLight.shadow.camera.top = 2.5;
+keyLight.shadow.camera.bottom = -2.5;
+// shadow acne en el canto: normalBias separa el muestreo a lo largo de la
+// normal de cada faceta (elimina las autosombras negras de las estrías) y un
+// bias negativo pequeño evita el despegue (peter-panning) sin generar parches.
+keyLight.shadow.bias = -0.0003;
+keyLight.shadow.normalBias = 0.045;
+scene.add(keyLight);
+
+const fillLight = new THREE.DirectionalLight(0x8fa3ff, 0.35);
+fillLight.position.set(-4, 2, -3);
+scene.add(fillLight);
+
+// Luz RASANTE (raking light): casi paralela a la cara, proyecta sombra larga en
+// los flancos de los grabados (glifo, AWAKE, fecha). Es LA clave para que el
+// relieve se lea desde todo ángulo: sin ella, en ángulos de softbox uniforme los
+// grabados apenas sombrean y se pierden sobre el campo satinado.
+// Luz RASANTE más baja y fuerte: un ángulo casi paralelo a la cara proyecta
+// sombra larga y clara en los flancos de los grabados, de modo que glifo, AWAKE
+// y fecha se lean en relieve incluso mirando la moneda de frente (donde un
+// reflejo uniforme haría desaparecer el detalle). La clave es la elevación baja.
+const rakeLight = new THREE.DirectionalLight(0xffffff, 0.9);
+rakeLight.position.set(3.4, -0.6, -3.2);  // rasante del reverso, elevación muy baja
+scene.add(rakeLight);
+const rakeLightBack = new THREE.DirectionalLight(0xffffff, 1.05);
+rakeLightBack.position.set(4.8, 0.06, 2.6);
+scene.add(rakeLightBack);
+
+// Raking cruzado solo en vista frontal: sombras laterales en glifo / AWAKE / fecha
+const rakeCrossL = new THREE.DirectionalLight(0xfff6ec, 0);
+rakeCrossL.position.set(-5.2, 0.10, 3.2);
+scene.add(rakeCrossL);
+const rakeCrossR = new THREE.DirectionalLight(0xfff6ec, 0);
+rakeCrossR.position.set(5.2, 0.08, 3.2);
+scene.add(rakeCrossR);
+
+const frontDetailLight = new THREE.DirectionalLight(0xfff9f2, 0);
+frontDetailLight.position.set(0, 0.3, 6);
+scene.add(frontDetailLight);
+
+const hemiLight = new THREE.HemisphereLight(0xdce8ff, 0x1a1410, 0.09);
+scene.add(hemiLight);
+
+const rimLight = new THREE.DirectionalLight(0xb8c8e8, 0.28);
+rimLight.position.set(-2.5, 1.2, 5.8);
+scene.add(rimLight);
+
+const _camDir = new THREE.Vector3();
+const _faceFront = new THREE.Vector3();
+const _faceBack = new THREE.Vector3();
+const _detailOff = new THREE.Vector3();
+let studioBaseEnvIntensity = 0.88;
+
+function frontFaceBlend(facing) {
+    if (facing <= 0.65) return 0;
+    return Math.min(1, (facing - 0.65) / 0.35);
+}
+
+const COIN_FIELD_R = 0.84;
+
+/** Desplazamiento Z del campo respecto al plano nominal (anverso: negativo = hundido). */
+function computeCenterDishZDisp(r, dishCfg, R_FIELD = COIN_FIELD_R) {
+    if (!dishCfg?.depth || !dishCfg?.radius) return 0;
+    const R_DISH = Math.min(dishCfg.radius, R_FIELD - 0.02);
+    const flatR = R_DISH * (dishCfg.flatRatio ?? 0.68);
+    let recess = 0;
+    if (r < R_DISH) {
+        if (r <= flatR) recess = dishCfg.depth;
+        else {
+            const t = 1 - (r - flatR) / (R_DISH - flatR);
+            recess = dishCfg.depth * (t * t * (3 - 2 * t));
+        }
+    }
+    const lift = (r > R_DISH + 1e-4 && r <= R_FIELD + 1e-4) ? (dishCfg.fieldLift ?? 0) : 0;
+    return -recess + lift;
+}
+
+function coinFaceZAtRadius(r, front = true) {
+    const H = COIN_CFG.tHeight / 2;
+    const d = computeCenterDishZDisp(r, COIN_RELIEF?.centerDish);
+    return front ? H + d : -H - d;
+}
+
+// ---------- Moneda: UN único sólido de revolución ----------
+// El cuerpo integra en una sola malla cerrada: canto dentado (reeded edge) +
+// las dos caras + la orla elevada en ambas. Es un sólido continuo (una sola
+// superficie exterior, sin piezas sueltas embebidas): el perfil es uniforme en
+// las 360° y no hay superficies internas coincidentes que parpadeen (z-fighting)
+// según el ángulo de cámara.
+// relief: { latheAmp, latheStep, satinAmp } — micro-relieve opcional de la cara.
+function buildCoinSolid(cfg) {
+    const { ridges, tHeight, radius, groove, relief, faldon, dentado, rim, rimRaise, rimWidth } = cfg;
+    const H = tHeight / 2;              // semigrosor (cara en z=±H)
+    // Resolución angular optimizada para móvil: 6 segmentos por surco del fresado
+    // (la onda del surco es suave, 32/surco era sobreteselado: 230k triángulos).
+    // Con 180 surcos → ANG=1080 → ~43k triángulos, silueta idéntica.
+    const ANG = Math.max(96, ridges * 6);
+    // Factor del fresado del canto con PERFIL SEMICIRCULAR (reeded edge): los
+    // surcos se mecanizan como semicírculos equidistantes; cresta=radius,
+    // valle=radius-groove con transición circular suave.
+    const ridge = (theta) => {
+        const f = (theta * ridges) / (Math.PI * 2);
+        const u = f - Math.floor(f);
+        const tri = 1 - Math.abs(2 * (u - 0.5));                 // valle triangular
+        const circ = Math.sin(Math.PI * Math.min(1, Math.max(0, u))); // suavizado circular
+        const prof = tri * tri * (3 - 2 * tri) * (0.7 + 0.3 * circ);
+        return 1 - (groove / radius) * prof;
+    };
+    // Perfil meridiano (r, z) construido según las opciones activas del panel:
+    //   campo central liso → [GRÁFILA] → [faldón] → canto [perpendicular + estriado]
+    // e=true modula el radio con el ángulo (canto reeded) cuando dentado=ON.
+    const R_FIELD = COIN_FIELD_R;
+    const dishCfg = relief?.centerDish;
+    const R_DISH = (dishCfg?.depth > 0 && dishCfg?.radius > 0) ? Math.min(dishCfg.radius, R_FIELD - 0.02) : 0;
+    const R_DISH_FLAT = R_DISH ? R_DISH * (dishCfg.flatRatio ?? 0.68) : 0;
+    const faceZDisp = (r) => computeCenterDishZDisp(r, dishCfg, R_FIELD);
+    const R_RIM = 0.92;      // radio exterior de la gráfila (reborde único)
+    const R_EDGE = 0.955;    // faldón a ras entre la gráfila y el reborde
+    const R_RIM2O = 0.995;   // cima exterior del reborde elevado
+    const R_RIM2I = R_RIM2O - (rimWidth ?? 0.02); // base del reborde: grosor radial editable en el panel
+    const RAISE2 = rimRaise; // altura del reborde elevado sobre la cara (panel)
+    const eDent = !!dentado; // el canto modula el radio solo si dentado=ON
+    const rows = [];
+    // --- anverso: medallón central → campo → gráfila → faldón → REBORDE ELEVADO → canto ---
+    rows.push({ r: 0, z: H, e: false });              // 0 polo anverso
+    if (R_DISH_FLAT) rows.push({ r: R_DISH_FLAT, z: H, e: false }); // fondo plano del plato
+    if (R_DISH) rows.push({ r: R_DISH, z: H, e: false }); // hombro del medallón
+    rows.push({ r: R_FIELD, z: H, e: false });        // campo
+    if (faldon) {
+        rows.push({ r: R_EDGE, z: H, e: false });     // faldón a ras
+    }
+    if (rim) {
+        rows.push({ r: R_RIM2I, z: H, e: false });        // base del reborde
+        rows.push({ r: R_RIM2I, z: H + RAISE2, e: false }); // pared interior del reborde
+        rows.push({ r: R_RIM2O, z: H + RAISE2, e: false }); // cima del reborde (sobresale)
+        rows.push({ r: R_RIM2O, z: H, e: false });         // caída exterior del reborde
+    }
+    const FRONT_LAST = rows.length - 1;
+    // --- canto ---
+    rows.push({ r: radius, z: H, e: eDent });         // arista superior
+    rows.push({ r: radius, z: 0, e: eDent });         // canto vertical
+    rows.push({ r: radius, z: -H, e: eDent });        // arista inferior
+    const EDGE_LAST = rows.length - 1;
+    // --- reverso (espejo) ---
+    if (rim) {
+        rows.push({ r: R_RIM2O, z: -H, e: false });        // caída exterior del reborde
+        rows.push({ r: R_RIM2O, z: -H - RAISE2, e: false }); // cima del reborde (revés)
+        rows.push({ r: R_RIM2I, z: -H - RAISE2, e: false }); // pared interior del reborde
+        rows.push({ r: R_RIM2I, z: -H, e: false });          // base del reborde (revés)
+    }
+    if (faldon) {
+        rows.push({ r: R_EDGE, z: -H, e: false });    // faldón (revés)
+    }
+    rows.push({ r: R_FIELD, z: -H, e: false });       // pared interior / campo (revés)
+    if (R_DISH) rows.push({ r: R_DISH, z: -H, e: false });
+    if (R_DISH_FLAT) rows.push({ r: R_DISH_FLAT, z: -H, e: false });
+    rows.push({ r: 0, z: -H, e: false });             // polo reverso
+    const zDisp = (pt, r, theta) => {
+        const d = faceZDisp(r);
+        if (!d) return 0;
+        if (Math.abs(pt.z - H) < 1e-4) return d;
+        if (Math.abs(pt.z + H) < 1e-4) return -d;
+        return 0;
+    };
+    const pos = [];
+    const uv = [];
+    const rowStart = [];   // índice del primer vértice de cada fila
+    const rowN = [];       // nº de vértices por fila (polo=1, resto=ANG)
+    const R = rows.length;
+    // Layout de UVs en 3 islas SIN solapamiento (padding 0.1 entre islas →
+    // anti-bleeding de 4px+ al hornear maps 2K):
+    //   ANVERSO (filas 0..FRONT_LAST): v = r/radius        → v ∈ [0, 1]
+    //   CANTO   (filas FRONT_LAST+1..EDGE_LAST): v = z     → v ∈ [1.1, 2.1]
+    //   REVERSO (filas EDGE_LAST+1..): v = r/radius        → v ∈ [2.2, 3.2]
+    // u = theta/2π en todas las islas (proyección polar/cilíndrica).
+    // FRONT_LAST / EDGE_LAST ya se calcularon arriba según las opciones activas.
+    for (let i = 0; i < R; i++) {
+        const pt = rows[i];
+        rowStart.push(pos.length / 3);
+        if (i === 0) {
+            // POLO ÚNICO (r=0): un solo vértice en el centro. Antes había 1080
+            // vértices coincidentes con z distinto (el satinado dependía de θ en
+            // r=0) → "cráter" en zigzag en el centro del disco.
+            const z = pt.z + zDisp(pt, 0, 0);
+            pos.push(0, 0, z);
+            uv.push(0, 0);
+            rowN.push(1);
+            continue;
+        }
+        for (let j = 0; j < ANG; j++) {
+            const theta = (j / ANG) * Math.PI * 2;
+            const r = pt.r * (pt.e ? ridge(theta) : 1);
+            const z = pt.z + zDisp(pt, r, theta);
+            pos.push(r * Math.cos(theta), r * Math.sin(theta), z);
+            let v;
+            if (i <= FRONT_LAST) v = r / radius;
+            else if (i <= EDGE_LAST) v = 1.1 + (z + H) / (2 * H);
+            else v = 2.2 + r / radius;
+            uv.push(j / ANG, v);
+        }
+        rowN.push(ANG);
+    }
+    const idx = [];
+    for (let i = 0; i < R - 1; i++) {
+        const s0 = rowStart[i], s1 = rowStart[i + 1];
+        if (rowN[i] === 1) {
+            // banda desde el polo: abanico de triángulos hacia la fila siguiente
+            for (let j = 0; j < ANG; j++) {
+                idx.push(s0, s1 + j, s1 + (j + 1) % ANG);
+            }
+        } else {
+            for (let j = 0; j < ANG; j++) {
+                const a = s0 + j, b = s0 + (j + 1) % ANG;
+                const c = s1 + j, d = s1 + (j + 1) % ANG;
+                idx.push(a, c, b, b, c, d);
+            }
+        }
+    }
+    // orientación hacia fuera: si el volumen con signo es negativo, invertimos
+    let vol = 0;
+    for (let k = 0; k < idx.length; k += 3) {
+        const a = idx[k] * 3, b = idx[k + 1] * 3, c = idx[k + 2] * 3;
+        const ax = pos[a], ay = pos[a + 1], az = pos[a + 2];
+        const bx = pos[b], by = pos[b + 1], bz = pos[b + 2];
+        const cx = pos[c], cy = pos[c + 1], cz = pos[c + 2];
+        vol += ax * (by * cz - bz * cy) - ay * (bx * cz - bz * cx) + az * (bx * cy - by * cx);
+    }
+    if (vol < 0) {
+        for (let k = 0; k < idx.length; k += 3) { const t = idx[k]; idx[k] = idx[k + 2]; idx[k + 2] = t; }
+    }
+    const g = new THREE.BufferGeometry();
+    g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+    g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    g.setIndex(idx);
+    g.computeVertexNormals();
+    return g;
+}
+// Grosor reducido: 0.33 → 0.18 (−45%). Canto semicircular con surco 0.008.
+// COIN_RELIEF: acabado satinado por material; medallón central geométrico opcional.
+// COIN_CFG es la CONFIGURACIÓN ÚNICA de la moneda, editable desde el panel de
+// control (switches y deslizadores): cada cambio llama a rebuildCoinGeometry().
+const COIN_RELIEF = {
+    latheAmp: 0,
+    latheStep: 0.032,
+    satinAmp: 0,
+    centerDish: null   // cara plana (sin medallón hundido): el grabado void y el glifo asientan a nivel
+};
+const RELIEF_FACE_INSET = 0.001;
+const BACK_RELIEF_PROTRUDE = 0.014;    // Base a protrude por debajo del plano trasero para que asiente.
+const BACK_ARC_PROTRUDE = 0.014;
+const COIN_CFG = {
+    ridges: 180,
+    tHeight: 0.15,      // grosor total (diámetro 2.0 → ratio ~13:1)
+    radius: 1.0,
+    groove: 0.008,      // profundidad del dentado del canto
+    relief: COIN_RELIEF,
+    faldon: true,       // faldón a ras ON
+    dentado: true,      // dentado del canto (reeded) ON
+    rim: true,          // reborde elevado exterior (estilo Maple Leaf) ON
+    rimRaise: 0.014,    // altura del reborde elevado sobre la cara
+    rimWidth: 0.02      // grosor radial del reborde elevado
+};
+const coin = new THREE.Mesh(buildCoinSolid(COIN_CFG));
+coin.name = 'moneda';
+coin.castShadow = true;
+coin.receiveShadow = true;
+scene.add(coin);
+function rebuildCoinGeometry() {
+    const g2 = buildCoinSolid(COIN_CFG);
+    if (coin.geometry) coin.geometry.dispose();
+    coin.geometry = g2;
+    syncReliefHeightsToCoinFace();
+}
+
+// ---------- Glifos por sección (extruidos, relieve real) ----------
+// Los paths de Phosphor se guardan como `d`; el espejo de coordenadas se aplica en buildGlyph.
+const GLYPHS = {
+    sello: 'M229.66,77.66l-128,128a8,8,0,0,1-11.32,0l-56-56a8,8,0,0,1,11.32-11.32L96,188.69,218.34,66.34a8,8,0,0,1,11.32,11.32Z',
+    dia: 'M240,152H199.55a73.54,73.54,0,0,0,.45-8,72,72,0,0,0-144,0,73.54,73.54,0,0,0,.45,8H16a8,8,0,0,0,0,16H240a8,8,0,0,0,0-16ZM72,144a56,56,0,1,1,111.41,8H72.59A56.13,56.13,0,0,1,72,144Zm144,56a8,8,0,0,1-8,8H48a8,8,0,0,1,0-16H208A8,8,0,0,1,216,200ZM72.84,43.58a8,8,0,0,1,14.32-7.16l8,16a8,8,0,0,1-14.32,7.16Zm-56,48.84a8,8,0,0,1,10.74-3.57l16,8a8,8,0,0,1-7.16,14.31l-16-8A8,8,0,0,1,16.84,92.42Zm192,15.16a8,8,0,0,1,3.58-10.73l16-8a8,8,0,1,1,7.16,14.31l-16,8a8,8,0,0,1-10.74-3.58Zm-48-55.16,8-16a8,8,0,0,1,14.32,7.16l-8,16a8,8,0,1,1-14.32-7.16Z',
+    racha: 'M183.89,153.34a57.6,57.6,0,0,1-46.56,46.55A8.75,8.75,0,0,1,136,200a8,8,0,0,1-1.32-15.89c16.57-2.79,30.63-16.85,33.44-33.45a8,8,0,0,1,15.78,2.68ZM216,144a88,88,0,0,1-176,0c0-27.92,11-56.47,32.66-84.85a8,8,0,0,1,11.93-.89l24.12,23.41,22-60.41a8,8,0,0,1,12.63-3.41C165.21,36,216,84.55,216,144Zm-16,0c0-46.09-35.79-85.92-58.21-106.33L119.52,98.74a8,8,0,0,1-13.09,3L80.06,76.16C64.09,99.21,56,122,56,144a72,72,0,0,0,144,0Z',
+    memoria: 'M208,56H180.28L166.65,35.56A8,8,0,0,0,160,32H96a8,8,0,0,0-6.65,3.56L75.71,56H48A24,24,0,0,0,24,80V192a24,24,0,0,0,24,24H208a24,24,0,0,0,24-24V80A24,24,0,0,0,208,56Zm8,136a8,8,0,0,1-8,8H48a8,8,0,0,1-8-8V80a8,8,0,0,1,8-8H80a8,8,0,0,0,6.66-3.56L100.28,48h55.43l13.63,20.44A8,8,0,0,0,176,72h32a8,8,0,0,1,8,8ZM128,88a44,44,0,1,0,44,44A44.05,44.05,0,0,0,128,88Zm0,72a28,28,0,1,1,28-28A28,28,0,0,1,128,160Z'
+};
+let GLYPH_RADIUS = 0.26; // radio del glifo: se ajusta para caber en el hueco central del anillo void
+
+const svgLoader = new SVGLoader();
+// VOID — grabado frontal "damage_void": se procesa con el MISMO pipeline que el
+// glifo (SVGLoader.parse → toShapes(true)). SVGLoader resuelve los subpaths anidados
+// del anillo en shapes con huecos de forma fiable, por lo que el motivo queda en
+// RELIEVE (cameo) sobre el campo sin triángulos-puente sobre el hueco central.
+const VOID_OUTER_R = 0.90;     // radio exterior del grabado (hasta la gráfila)
+const VOID_INNER_R = 0.32;     // radio interior del hueco central (del SVG, medido)
+const VOID_ANCHOR_R = 0.62;
+const VOID_D = "M30.744 9.787q1.256 2.962 1.256 6.213t-1.256 6.245q-1.223 2.833-3.412 5.054-2.221 2.254-5.087 3.445-2.994 1.256-6.245 1.256t-6.213-1.256q-2.833-1.191-5.087-3.445-2.157-2.125-3.412-5.054-1.288-3.058-1.288-6.245t1.288-6.213q1.256-2.994 3.412-5.087 2.254-2.254 5.087-3.445 3.058-1.256 6.213-1.256 3.123 0 6.245 1.256 2.865 1.191 5.087 3.445 2.189 2.189 3.412 5.087zM15.839 2.221q-5.473-0.032-9.288 3.622t-4.298 8.998h0.032v-0.193l0.032-0.097v-0.064l0.064-0.354 0.064-0.193 0.032-0.161q0.064-0.258 0.097-0.354 0-0.032 0.016-0.097t0.016-0.097l0.064-0.161 0.032-0.193q0.032-0.032 0.032-0.064 0.032-0.064 0.032-0.097 0.515-1.449 1.223-2.672 0.676-1.127 1.835-2.318 0.998-0.998 2.35-1.835 1.159-0.74 2.704-1.288 0.064-0.032 0.177-0.064t0.177-0.032q0.032 0 0.097-0.032t0.097-0.032l0.193-0.032q0.097-0.032 0.354-0.097l0.386-0.097q0.097 0 0.161-0.032l0.193-0.032q0.064 0 0.193-0.016t0.193-0.016l0.386-0.032q0.032 0 0.097-0.032h0.258q0.064 0 0.193-0.016t0.193-0.016h0.386q0.064 0 0.193 0.016t0.193 0.016h0.161q0.129 0 0.193 0.032 0.29 0 0.74 0.064 0.064 0.032 0.193 0.032l0.097 0.032h0.097q0.064 0.032 0.177 0.064t0.177 0.032h0.129q0.032 0.032 0.064 0.032t0.080 0.016 0.080 0.016 0.097 0.032 0.097 0.032h0.097l0.064 0.032q0.258 0.064 0.354 0.129h0.097l0.097 0.032q0.129 0.064 0.161 0.064 0.129 0.064 0.193 0.064l0.064 0.032 0.097 0.032q0.032 0.032 0.145 0.080t0.177 0.080l0.193 0.064q0.064 0.064 0.161 0.064 0.032 0.032 0.161 0.097l0.064 0.032 0.097 0.032q2.575 1.352 4.185 3.67 0.773 1.095 1.223 2.318 0.064 0.129 0.064 0.161 0.032 0.032 0.032 0.064t0.032 0.064q0.032 0.129 0.097 0.322 0 0.032 0.032 0.064l0.032 0.064v0.097l0.032 0.064q0.032 0.032 0.064 0.161t0.032 0.161q0.064 0.193 0.064 0.29 0.032 0.129 0.097 0.322 0 0.032 0.016 0.145t0.016 0.177l0.032 0.064v0.064q0 0.032 0.032 0.097v0.064q0.161 1.384 0.032 2.414-0.097 1.062-0.451 2.157-0.29 0.837-0.805 1.803-0.579 0.901-0.998 1.416-0.064 0.097-0.258 0.29-0.032 0.064-0.129 0.161t-0.129 0.161-0.129 0.145-0.161 0.113l-0.161 0.129q-0.032 0.032-0.064 0.080t-0.064 0.080l-0.161 0.129q-0.064 0.032-0.161 0.129-0.064 0.032-0.161 0.113t-0.129 0.113q-0.129 0.097-0.322 0.225t-0.354 0.225q-0.064 0.064-0.129 0.064 0.515-0.161 1.223-0.515 1.062-0.547 1.899-1.256 0.934-0.837 1.577-1.706 0.612-0.837 1.159-2.028l0.032-0.064v-0.064l0.129-0.258q0-0.032 0.016-0.080t0.016-0.080q0.032-0.032 0.064-0.129t0.032-0.129l0.032-0.161 0.064-0.129q0.032-0.064 0.032-0.161t0.032-0.129 0.032-0.064v-0.064l0.032-0.161q0.064-0.129 0.064-0.258 0.032-0.032 0.032-0.129t0.032-0.161l0.032-0.161v-0.129q0-0.032 0.032-0.129t0.032-0.161v-0.29q0.032-0.097 0.032-0.29v-0.29l0.032-0.161v-0.129q0-0.193-0.032-0.29v-0.29q0-0.097-0.016-0.29t-0.016-0.29q-0.032-0.097-0.032-0.29-0.032-0.032-0.032-0.129l-0.032-0.161q0-0.032-0.016-0.129t-0.016-0.161q-0.064-0.129-0.064-0.258-0.064-0.193-0.064-0.29l-0.097-0.29q-0.032-0.097-0.080-0.258t-0.048-0.193q-0.258-0.773-0.579-1.417-0.515-1.062-1.159-1.899-0.032-0.097-0.161-0.225-0.064-0.129-0.161-0.225-0.032-0.032-0.080-0.097t-0.080-0.097-0.080-0.113-0.080-0.113q-0.129-0.129-0.37-0.386t-0.37-0.386q-0.258-0.258-0.773-0.708-0.032-0.032-0.338-0.258t-0.467-0.354q-1.513-1.062-3.316-1.706h-0.064l-0.064-0.032q-0.032-0.032-0.097-0.032-0.129-0.064-0.193-0.064-0.032 0-0.097-0.032t-0.097-0.032h-0.032q-0.064-0.032-0.097-0.032t-0.097-0.032q-0.064 0-0.193-0.064-0.032 0-0.097-0.016t-0.097-0.016l-0.386-0.097q-1.191-0.225-1.61-0.225zM21.972 16A5.972 5.972 0 1 0 10.028 16A5.972 5.972 0 1 0 21.972 16ZM16.193 29.779q2.704 0.097 5.151-0.869t4.201-2.704 2.865-4.089 1.336-4.958v0.032l-0.032 0.161v0.097l-0.032 0.032v0.064q0 0.097-0.064 0.354l-0.032 0.161-0.032 0.193q-0.032 0.097-0.097 0.354 0 0.032-0.064 0.161l-0.097 0.354v0.097l-0.032 0.064q-0.483 1.449-1.256 2.672-0.773 1.256-1.835 2.318-1.159 1.159-2.35 1.867-1.223 0.773-2.672 1.256-0.258 0.064-0.386 0.129-0.032 0-0.080 0.016t-0.080 0.016l-0.193 0.064q-0.258 0.064-0.354 0.097-0.129 0-0.386 0.064-0.032 0-0.097 0.016t-0.097 0.016l-0.193 0.032q-0.097 0-0.354 0.064-0.258 0-0.386 0.032h-0.386q-0.129 0.032-0.386 0.032h-0.354q-0.258 0-0.386-0.032h-0.386q-0.225-0.032-0.74-0.097-0.032 0-0.097-0.016t-0.097-0.016h-0.097q-0.032-0.032-0.064-0.032-0.064-0.032-0.193-0.032t-0.193-0.032l-0.064-0.032h-0.097q-0.032 0-0.097-0.032t-0.097-0.032-0.080-0.016-0.080-0.016l-0.193-0.064q-0.064-0.032-0.177-0.064t-0.177-0.032l-0.097-0.032-0.064-0.032q-0.032 0-0.097-0.032t-0.097-0.032q-0.032-0.032-0.064-0.032t-0.048-0.016-0.048-0.016l-0.097-0.032-0.064-0.032q-0.064 0-0.177-0.048t-0.177-0.080l-0.064-0.032-0.097-0.064q-0.032 0-0.161-0.064t-0.161-0.064l-0.097-0.064-0.064-0.032q-2.575-1.288-4.185-3.67-0.773-1.095-1.256-2.318l-0.064-0.129q0-0.032-0.032-0.097v-0.064q-0.064-0.097-0.129-0.29 0-0.032-0.016-0.080t-0.016-0.080q-0.032-0.032-0.032-0.064v-0.032q-0.064-0.129-0.064-0.161t-0.016-0.080-0.016-0.080l-0.097-0.29q-0.032-0.129-0.097-0.322 0-0.064-0.064-0.322 0-0.097-0.064-0.29v-0.161q-0.032-0.064-0.032-0.161-0.161-1.384-0.032-2.382 0.097-1.127 0.451-2.157 0.354-1.095 0.805-1.803 0.515-0.869 0.998-1.449 0.064-0.097 0.258-0.29 0.032-0.032 0.113-0.129t0.145-0.161l0.29-0.29 0.161-0.129 0.129-0.129 0.161-0.129q0.032-0.064 0.161-0.129 0.064-0.032 0.161-0.113t0.129-0.145q0.193-0.097 0.322-0.225 0.064-0.032 0.177-0.097t0.177-0.097q0.064-0.064 0.129-0.097-0.837 0.322-1.223 0.515-1.095 0.579-1.899 1.288-0.901 0.74-1.577 1.674-0.676 0.966-1.159 2.028 0 0.032-0.032 0.064v0.064l-0.064 0.161-0.064 0.129q0 0.032-0.016 0.064t-0.016 0.064l-0.097 0.29-0.064 0.129-0.032 0.129q-0.064 0.193-0.064 0.29l-0.032 0.064v0.097l-0.032 0.129q-0.064 0.193-0.064 0.29-0.064 0.193-0.064 0.29l-0.032 0.129q0 0.097-0.032 0.161 0 0.193-0.032 0.29 0 0.193-0.032 0.29v0.29q0 0.193-0.032 0.29v0.708q0 0.032 0.016 0.080t0.016 0.080q0 0.386 0.032 0.547 0.032 0.097 0.032 0.29 0 0.032 0.016 0.080t0.016 0.080l0.032 0.129q0 0.032 0.016 0.129t0.016 0.161q0.064 0.193 0.064 0.29 0 0.032 0.032 0.129t0.032 0.129q0.064 0.193 0.064 0.29 0.386 1.256 0.837 2.125 0.386 0.837 1.127 1.932 0.032 0.032 0.161 0.225 0.129 0.129 0.161 0.193 0.032 0.032 0.097 0.113t0.097 0.113q0.032 0.064 0.161 0.193 0.29 0.386 0.74 0.773 0.29 0.322 0.773 0.708 0.258 0.225 0.773 0.612 1.642 1.159 3.348 1.706 0.032 0 0.032 0.032l0.064 0.032q0.064 0 0.097 0.032 0.097 0 0.225 0.064 0.032 0 0.097 0.016t0.097 0.016q0.032 0.032 0.097 0.032 0.032 0.032 0.097 0.032 0.032 0 0.097 0.032t0.097 0.032 0.113 0.016 0.113 0.016l0.386 0.097q0.676 0.161 1.481 0.225h0.129z";
+function buildVoidRingGeo() {
+    // Espejo vertical (y abajo -> y arriba), identico al pipeline del glifo.
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">' +
+        '<g transform="translate(0 32) scale(1 -1)"><path fill="#000" fill-rule="nonzero" d="' + VOID_D + '"/></g></svg>';
+    const data = svgLoader.parse(svg);
+    const shapes = [];
+    for (const p of data.paths) shapes.push(...p.toShapes(true));
+    if (!shapes.length) return null;
+    const tmp = new THREE.ShapeGeometry(shapes, 16);
+    tmp.computeBoundingBox();
+    const tb = tmp.boundingBox;
+    tmp.translate(-(tb.min.x + tb.max.x) / 2, -(tb.min.y + tb.max.y) / 2, 0);
+    let maxR = 0;
+    const tp = tmp.attributes.position;
+    for (let i = 0; i < tp.count; i++) {
+        const r = Math.hypot(tp.getX(i), tp.getY(i));
+        if (r > maxR) maxR = r;
+    }
+    tmp.dispose();
+    const s = VOID_OUTER_R / maxR;
+    // resolucion propia del anillo: mas curvas y mas bisel para grabar los brazos
+    // espirales con suavidad (el glifo conserva glyphOpts/16).
+    const opts = Object.assign({}, glyphOpts, {
+        bevelSize: 0.004 / s,
+        curveSegments: 32,
+        bevelSegments: 8
+    });
+    const g = new THREE.ExtrudeGeometry(shapes, opts);
+    g.computeBoundingBox();
+    const bb = g.boundingBox;
+    g.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, 0);
+    g.applyMatrix4(new THREE.Matrix4().makeScale(s, s, 1));
+    g.translate(0, 0, -g.boundingBox.min.z);
+    g.computeVertexNormals();
+    bakeReliefAO(g, reliefAOStrength(), 0.54);
+    return g;
+}
+    // radio medio del anillo para asentar su z (campo plano)
+let voidRingGeo = null;
+function rebuildVoidRing() {
+    if (voidRingGeo) voidRingGeo.dispose();
+    voidRingGeo = buildVoidRingGeo();
+    if (voidRingGeo) voidRing.geometry = voidRingGeo;
+    syncReliefHeightsToCoinFace();
+}
+const voidRing = new THREE.Mesh(new THREE.BufferGeometry());
+voidRing.name = 'void-ring';
+voidRing.castShadow = true;
+voidRing.receiveShadow = true;
+
+// base de extrusión en coords SVG (0-256); los valores de bevel se ajustan por glifo
+// dentro de buildGlyph para que, tras escalar XY a unidades reales, el chaflán
+// lateral quede isótropo e igual al AWAKE (evita paredes casi verticales).
+const glyphOpts = {
+    depth: 0.012,
+    bevelEnabled: true,
+    bevelThickness: 0.0075,
+    bevelSize: 0.004,
+    bevelSegments: 6,
+    curveSegments: 16
+};
+
+const glyph = new THREE.Mesh(new THREE.BufferGeometry());
+glyph.name = 'glifo';
+// base enrasada en el medallón del anverso; syncReliefHeightsToCoinFace() ajusta z
+glyph.position.z = 0.089;
+glyph.castShadow = true;
+scene.add(glyph);
+
+let glyphGeo = null;
+let section = 'sello';
+function buildGlyph(sec) {
+    // Espejo vertical (y→-y): SVGLoader alimenta las coords y-abajo del SVG a three (y-arriba).
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">' +
+        '<g transform="translate(0 256) scale(1 -1)"><path fill="#000" d="' + GLYPHS[sec] + '"/></g></svg>';
+    const data = svgLoader.parse(svg);
+    const shapes = [];
+    for (const p of data.paths) shapes.push(...p.toShapes(true));
+    // factor de escala: primero mido maxR en coords SVG (sin extruir) para que el
+    // chaflán lateral sea isótropo al pasar a unidades reales (igual al AWAKE).
+    const tmp = new THREE.ShapeGeometry(shapes, 16);
+    tmp.computeBoundingBox();
+    const tb = tmp.boundingBox;
+    tmp.translate(-(tb.min.x + tb.max.x) / 2, -(tb.min.y + tb.max.y) / 2, 0);
+    let maxR = 0;
+    const tp = tmp.attributes.position;
+    for (let i = 0; i < tp.count; i++) {
+        const r = Math.hypot(tp.getX(i), tp.getY(i));
+        if (r > maxR) maxR = r;
+    }
+    tmp.dispose();
+    const s = GLYPH_RADIUS / maxR;
+    // bevelSize proporcional: en coords SVG vale realBEVEL/s para que tras escalar
+    // XY por s el chaflán lateral quede ~0.004 (mismo acabado que el AWAKE).
+    const opts = Object.assign({}, glyphOpts, { bevelSize: 0.004 / s });
+    const g = new THREE.ExtrudeGeometry(shapes, opts);
+    // centrar en el plano XY
+    g.computeBoundingBox();
+    const bb = g.boundingBox;
+    g.translate(-(bb.min.x + bb.max.x) / 2, -(bb.min.y + bb.max.y) / 2, 0);
+    g.applyMatrix4(new THREE.Matrix4().makeScale(s, s, 1));
+    g.translate(0, 0, -g.boundingBox.min.z); // base en z=0
+    g.computeVertexNormals();
+    bakeReliefAO(g, reliefAOStrength(), 0.54);
+    return g;
+}
+
+const sectionBtns = [...document.querySelectorAll('.sec-btn')];
+function setSection(sec) {
+    section = sec;
+    if (glyphGeo) glyphGeo.dispose();
+    glyphGeo = buildGlyph(section);
+    glyph.geometry = glyphGeo;
+    sectionBtns.forEach(b => b.classList.toggle('active', b.dataset.sec === section));
+}
+sectionBtns.forEach(b => b.addEventListener('click', () => setSection(b.dataset.sec)));
+
+// ---------- Metales por nivel (1 Hierro → 6 Platino) — especificación PBR ----------
+// Workflow metálico: Metallic=1.0 en todos; varían ALBEDO y ROUGHNESS:
+//   Hierro  acero claro  · Bronce dorado pálido  · Cobre cálido (menos rojizo)
+//   Plata   #E0E0E0 R 0.14  · Oro    #D4AF37 R 0.11  · Platino #E5E4E2 R 0.085
+const METALS = [
+    { id: 'hierro',   name: 'HIERRO',   color: 0x6E7882, roughness: 0.44, env: 0.86, accent: '#9aa8b8', fieldRoughBump: 0.02 },
+    { id: 'bronce',   name: 'BRONCE',   color: 0x9E8344, roughness: 0.38, env: 0.74, accent: '#c4a862', fieldRoughBump: 0.01 },
+    { id: 'cobre',    name: 'COBRE',    color: 0xC4845A, roughness: 0.22, env: 0.84, accent: '#d9986a', fieldRoughBump: 0.012 },
+    { id: 'plata',    name: 'PLATA',    color: 0xE0E0E0, roughness: 0.16, env: 0.84, accent: '#e6eaf0', fieldRoughBump: 0.02 },
+    { id: 'oro',      name: 'ORO',      color: 0xD4AF37, roughness: 0.16, env: 0.74, accent: '#f2d08a', fieldRoughBump: 0.04 },
+    { id: 'platino',  name: 'PLATINO',  color: 0xA5E0BA, roughness: 0.14, env: 0.72, accent: '#8fd6ab', fieldRoughBump: 0.04 }
+];
+let metalIndex = 4; // arrancamos en ORO
+
+const levelEl = document.getElementById('hud-level');
+const prevBtn = document.getElementById('nav-prev');
+const nextBtn = document.getElementById('nav-next');
+
+function reliefAOStrength() {
+    return STUDIO.reliefAO != null ? STUDIO.reliefAO : 0.68;
+}
+
+function metalMat(color, roughness, env, isRelief, fieldBump) {
+    const bump = fieldBump || 0;
+    const fieldR = Math.min(0.66, (roughness + bump) * STUDIO.fieldRoughnessMul);
+    const reliefR = Math.max(0.26, fieldR * STUDIO.reliefRoughnessMul);
+    const r = isRelief ? reliefR : fieldR;
+    const e = isRelief ? env * STUDIO.reliefEnvMul : env;
+    const mat = new THREE.MeshPhysicalMaterial({
+        color, metalness: 1.0, roughness: r, envMapIntensity: e,
+        side: THREE.DoubleSide, flatShading: false,
+        vertexColors: isRelief
+    });
+    mat.userData.baseEnv = e;
+    return mat;
+}
+// Hornea AO suave en la base de un relieve extruido: oscurece la franja donde la
+// pared del grabado se encuentra con el campo (profunidad óptica), dejando la cima
+// clara. Se escribe como atributo de color por vértice (multiplica el albedo del
+// material de relieve, que tiene vertexColors activado).
+function bakeReliefAO(geo, strength = 0.55, reach = 0.45) {
+    const pos = geo.attributes.position;
+    const nor = geo.attributes.normal;
+    if (!pos || !nor) return;
+    const colors = new Float32Array(pos.count * 3);
+    let zMin = Infinity, zMax = -Infinity;
+    for (let i = 0; i < pos.count; i++) {
+        const z = pos.getZ(i); if (z < zMin) zMin = z; if (z > zMax) zMax = z;
+    }
+    const dz = Math.max(1e-6, zMax - zMin);
+    for (let i = 0; i < pos.count; i++) {
+        const h = (pos.getZ(i) - zMin) / dz;            // 0 = base (campo) → 1 = cima
+        const nz = Math.abs(nor.getZ(i));                // 1 = tapa horizontal, 0 = pared
+        const wall = Math.max(0, 1 - nz);
+        const fall = smoothstep01(1 - reach, 1, h);      // 0 abajo → 1 arriba
+        const ao = 1 - strength * wall * (1 - fall);     // paredes bajas más oscuras
+        colors[i * 3] = colors[i * 3 + 1] = colors[i * 3 + 2] = ao;
+    }
+    geo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+}
+function smoothstep01(e0, e1, x) {
+    const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+    return t * t * (3 - 2 * t);
+}
+// ---------- Estudio ajustable (applyStudio) ----------
+function applyStudio() {
+    renderer.toneMappingExposure = STUDIO.exposure;
+    keyLight.intensity = STUDIO.key;
+    fillLight.intensity = STUDIO.fill;
+    rakeLightBack.intensity = STUDIO.rakeF;
+    rakeLight.intensity = STUDIO.rakeB;
+    rimLight.intensity = STUDIO.rim;
+    hemiLight.intensity = STUDIO.hemi;
+    keyLight.castShadow = STUDIO.shadow;
+    renderer.shadowMap.enabled = STUDIO.shadow;
+    studioBaseEnvIntensity = (STUDIO.baseEnv || 0.86) * STUDIO.envMul;
+    scene.environmentIntensity = studioBaseEnvIntensity;
+    if (shadowDisc && shadowDisc.material) {
+        shadowDisc.material.opacity = STUDIO.shadowOpacity;
+    }
+    const az = STUDIO.lightAz * Math.PI / 180;
+    const el = STUDIO.lightEl * Math.PI / 180;
+    const d = 7.4;
+    keyLight.position.set(d * Math.cos(el) * Math.sin(az), d * Math.sin(el), d * Math.cos(el) * Math.cos(az));
+    if (typeof syncStudioPanelValues === 'function') syncStudioPanelValues();
+    window.__studioDbg = {
+        key: keyLight.intensity, fill: fillLight.intensity,
+        rakeF: rakeLightBack.intensity, rakeB: rakeLight.intensity,
+        envMul: STUDIO.envMul, exposure: renderer.toneMappingExposure,
+        envIntensity: scene.environmentIntensity, baseEnv: STUDIO.baseEnv
+    };
+}
+function applyViewAdaptiveLighting() {
+    if (!coinGroup) return;
+    const baseKey = STUDIO.key;
+    const baseFill = STUDIO.fill;
+
+    function resetDirectLights() {
+        keyLight.intensity = baseKey;
+        fillLight.intensity = baseFill;
+        rakeLightBack.intensity = STUDIO.rakeF;
+        rakeLight.intensity = STUDIO.rakeB;
+        rakeCrossL.intensity = 0;
+        rakeCrossR.intensity = 0;
+        frontDetailLight.intensity = 0;
+        scene.environmentIntensity = studioBaseEnvIntensity;
+    }
+
+    if (!STUDIO.viewAdaptive) {
+        resetDirectLights();
+        return;
+    }
+
+    camera.getWorldDirection(_camDir);
+    _faceFront.set(0, 0, 1).applyQuaternion(coinGroup.quaternion);
+    _faceBack.set(0, 0, -1).applyQuaternion(coinGroup.quaternion);
+    const facingFront = Math.abs(_camDir.dot(_faceFront));
+    const facingBack = Math.abs(_camDir.dot(_faceBack));
+
+    let t = 0;
+    let onFront = false;
+    if (facingFront >= facingBack && facingFront > 0.65) {
+        t = frontFaceBlend(facingFront);
+        onFront = true;
+    } else if (facingBack > 0.65) {
+        t = frontFaceBlend(facingBack);
+        onFront = false;
+    }
+
+    if (t <= 0) {
+        resetDirectLights();
+        return;
+    }
+
+    const keyCut = STUDIO.frontKeyCut != null ? STUDIO.frontKeyCut : 0.42;
+    const fillCut = STUDIO.frontFillCut != null ? STUDIO.frontFillCut : 0.62;
+    keyLight.intensity = baseKey * (1 - keyCut * t);
+    fillLight.intensity = baseFill * (1 - fillCut * t);
+    scene.environmentIntensity = studioBaseEnvIntensity * (1 - STUDIO.frontEnvCut * t);
+
+    if (onFront) {
+        rakeLightBack.intensity = STUDIO.rakeF + STUDIO.frontRakeBoost * t;
+        rakeLight.intensity = STUDIO.rakeB * (1 - 0.35 * t);
+        const cross = (STUDIO.frontCross != null ? STUDIO.frontCross : 1.05) * t;
+        rakeCrossL.intensity = cross;
+        rakeCrossR.intensity = cross * 0.92;
+        _detailOff.set(-0.62, 0.24, 0.08).applyQuaternion(camera.quaternion);
+        frontDetailLight.position.copy(camera.position).add(_detailOff);
+        frontDetailLight.intensity = (STUDIO.frontDetail != null ? STUDIO.frontDetail : 0.62) * t;
+    } else {
+        rakeLight.intensity = STUDIO.rakeB + STUDIO.frontRakeBoost * t;
+        rakeLightBack.intensity = STUDIO.rakeF * (1 - 0.35 * t);
+        rakeCrossL.intensity = 0;
+        rakeCrossR.intensity = 0;
+        frontDetailLight.intensity = 0;
+    }
+}
+let coinMaterial;        // satinado (cuerpo y campo)
+let coinReliefMaterial;  // pulido espejo (glifo, AWAKE, rebordes)
+let dateGrab = null;   // mesh del grabado de fecha (reverso); se crea tras cargar la fuente
+let topBrand = null;    // mesh del AWAKE superior (reverso); se crea tras cargar la fuente
+function applyMetal(i) {
+    metalIndex = Math.max(0, Math.min(METALS.length - 1, i));
+    const m = METALS[metalIndex];
+    STUDIO.baseEnv = m.env;   // factor de reflejo propio del metal (r155+)
+    const old = [coinMaterial, coinReliefMaterial];
+    coinMaterial = metalMat(m.color, m.roughness, m.env, false, m.fieldRoughBump);
+    coinReliefMaterial = metalMat(m.color, m.roughness, m.env, true, m.fieldRoughBump);
+    coin.material = coinMaterial;
+    glyph.material = coinReliefMaterial;
+    if (voidRing) voidRing.material = coinReliefMaterial;
+    if (dateGrab && dateGrab.geometry && dateGrab.geometry.attributes.position) dateGrab.material = coinReliefMaterial;
+    if (topBrand && topBrand.geometry && topBrand.geometry.attributes.position) topBrand.material = coinReliefMaterial;
+    if (old) old.forEach(o => o && o.dispose());
+    levelEl.textContent = 'NIVEL ' + (metalIndex + 1) + ' · ' + m.name;
+    levelEl.style.color = m.accent;
+    prevBtn.disabled = metalIndex === 0;
+    nextBtn.disabled = metalIndex === METALS.length - 1;
+    applyStudio();
+}
+// Inicialización diferida tras shadowDisc, coinGroup y panel (ver bootCoinScene)
+
+// ---------- Peana ----------
+const baseMat = new THREE.MeshStandardMaterial({
+    color: 0x1a1d23,
+    metalness: 0.85,
+    roughness: 0.45,
+    envMapIntensity: 1.0
+});
+const base = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.52, 0.12, 64), baseMat);
+base.position.y = -1.84;
+base.castShadow = true;
+base.receiveShadow = true;
+scene.add(base);
+
+// ---------- Disco de sombra ----------
+const shadowDiscMat = new THREE.ShadowMaterial({ opacity: STUDIO.shadowOpacity });
+shadowDisc = new THREE.Mesh(
+    new THREE.CircleGeometry(3.4, 64),
+    shadowDiscMat
+);
+shadowDisc.rotation.x = -Math.PI / 2;
+shadowDisc.position.y = -1.94;
+shadowDisc.receiveShadow = true;
+scene.add(shadowDisc);
+
+// ---------- Controles ----------
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.enablePan = false;
+controls.enableZoom = true;
+controls.minDistance = 2.5;
+controls.maxDistance = 9;
+controls.minPolarAngle = THREE.MathUtils.degToRad(52);
+controls.maxPolarAngle = THREE.MathUtils.degToRad(118);
+controls.target.set(0, 0, 0);
+// --- Turntable: perspectiva y luz estáticas; rota SOLO la moneda (coinGroup) ---
+let lastT = performance.now();          // dt manual (sin Clock deprecado)
+const COIN_SPIN = (Math.PI * 2) / 28;   // 1 vuelta cada ~28 s
+let coinSpinning = false;                 // rotación automática OFF durante el diseño
+// (El usuario puede arrastrar la cámara para inspeccionar durante el diseño.)
+
+// ---------- Reset ----------
+document.getElementById('reset').addEventListener('click', () => {
+    setCameraView();
+    controls.target.set(0, 0, 0);
+    controls.update();
+});
+
+// ---------- Navegación entre metales ----------
+prevBtn.addEventListener('click', () => applyMetal(metalIndex - 1));
+nextBtn.addEventListener('click', () => applyMetal(metalIndex + 1));
+
+// ---------- Reverso: marca AWAKE (fuente exacta Cinzel + línea decorativa) ----------
+const BACK_FONT_URL = 'www/fonts/Cinzel-SemiBold.woff2';
+const BACK_LS_EM = 0.4;   // letter-spacing del encabezado
+const BACK_CANVAS = 4096;
+const BACK_TARGET_W = 0.72;   // ancho del bloque en la moneda (dentro del medallón 0.50)
+
+function loadBrandFont() {
+    return new Promise((resolve, reject) => {
+        const face = new FontFace('CinzelSemi', 'url(' + BACK_FONT_URL + ')');
+        face.load().then(() => { document.fonts.add(face); resolve(); }, reject);
+    });
+}
+// Fuente compartida para todos los grabados (reverso, AWAKE superior y fecha):
+// se espera a que Cinzel esté cargada antes de dibujar, para que ningún grabado
+// caiga a la fuente sans-serif de reserva. brandFamily se actualiza al terminar.
+let brandFamily = 'sans-serif';
+let brandFontPromise = null;
+function ensureBrandFont() {
+    if (!brandFontPromise) {
+        brandFontPromise = loadBrandFont()
+            .then(() => { brandFamily = 'CinzelSemi'; })
+            .catch(() => { brandFamily = 'sans-serif'; });
+    }
+    return brandFontPromise;
+}
+
+function scanAlphaBBox(canvas) {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const { width: W, height: H } = canvas;
+    const d = ctx.getImageData(0, 0, W, H).data;
+    let minX = W, minY = H, maxX = -1, maxY = -1;
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) {
+        if (d[(y * W + x) * 4 + 3] > 100) {
+            if (x < minX) minX = x; if (x > maxX) maxX = x;
+            if (y < minY) minY = y; if (y > maxY) maxY = y;
+        }
+    }
+    return { minX, minY, maxX, maxY };
+}
+
+function drawBrand(canvas, size, family) {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.fillStyle = '#fff';
+    ctx.font = '600 ' + size + 'px ' + family;
+    const text = 'AWAKE';
+    const adv = [];
+    let total = 0;
+    for (const ch of text) { const w = ctx.measureText(ch).width; adv.push(w); total += w; }
+    total += BACK_LS_EM * size * (text.length - 1);
+    const baseline = size * 0.75;
+    let x = (canvas.width - total) / 2;
+    const charX = [];
+    for (let i = 0; i < text.length; i++) {
+        charX.push(x);
+        ctx.fillText(text[i], x, baseline);
+        x += adv[i] + BACK_LS_EM * size;
+    }
+    const bbox = scanAlphaBBox(canvas); // sin línea decorativa: solo el texto AWAKE
+}
+
+function contoursFromCanvas(canvas) {
+    // Marching squares con interpolacion subpixel: los cruces de borde se interpolan
+    // en el campo alfa (umbral 128), de modo que rectas salen rectas y curvas suaves
+    // en vez de escalones de 1 pixel. Recorrido con relleno a la derecha (misma
+    // convencion de orientacion que el trazador original: exterior positivo).
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const Wp = canvas.width, Hp = canvas.height;
+    const img = ctx.getImageData(0, 0, Wp, Hp).data;
+    const W = Wp + 2, H = Hp + 2;
+    const a = new Float32Array(W * H); // campo con borde de 0
+    for (let y = 0; y < Hp; y++) for (let x = 0; x < Wp; x++)
+        a[(y + 1) * W + (x + 1)] = img[(y * Wp + x) * 4 + 3];
+    const T = 128;
+    const at = (x, y) => a[y * W + x];
+    const cross = (v0, v1) => { const d = v1 - v0; return d === 0 ? 0.5 : Math.min(1, Math.max(0, (T - v0) / d)); };
+    const segs = [];
+    for (let y = 0; y < H - 1; y++) for (let x = 0; x < W - 1; x++) {
+        const vTL = at(x, y), vTR = at(x + 1, y), vBR = at(x + 1, y + 1), vBL = at(x, y + 1);
+        const idx = (vTL >= T ? 8 : 0) | (vTR >= T ? 4 : 0) | (vBR >= T ? 2 : 0) | (vBL >= T ? 1 : 0);
+        if (idx === 0 || idx === 15) continue;
+        const pT = [x + cross(vTL, vTR), y], pB = [x + cross(vBL, vBR), y + 1];
+        const pL = [x, y + cross(vTL, vBL)], pR = [x + 1, y + cross(vTR, vBR)];
+        const vC = (vTL + vTR + vBR + vBL) / 4;
+        let pairs = null;
+        switch (idx) {
+            case 8:  pairs = [[pT, pL]]; break;
+            case 4:  pairs = [[pT, pR]]; break;
+            case 2:  pairs = [[pR, pB]]; break;
+            case 1:  pairs = [[pB, pL]]; break;
+            case 12: case 3: pairs = [[pL, pR]]; break;
+            case 6:  case 9: pairs = [[pT, pB]]; break;
+            case 7:  pairs = [[pT, pL]]; break;
+            case 11: pairs = [[pT, pR]]; break;
+            case 13: pairs = [[pR, pB]]; break;
+            case 14: pairs = [[pB, pL]]; break;
+            case 5:  pairs = vC >= T ? [[pT, pL], [pR, pB]] : [[pT, pR], [pB, pL]]; break;
+            case 10: pairs = vC >= T ? [[pT, pR], [pB, pL]] : [[pT, pL], [pR, pB]]; break;
+        }
+        if (!pairs) continue;
+        for (const [P, Q] of pairs) {
+            // orientar con relleno a la derecha: normal derecha (-dy, dx) hacia el relleno
+            const dx = Q[0] - P[0], dy = Q[1] - P[1];
+            const nx = -dy, ny = dx;
+            // esquina rellena y vacia de referencia dentro de la celda
+            const corners = [[x, y, vTL], [x + 1, y, vTR], [x + 1, y + 1, vBR], [x, y + 1, vBL]];
+            let f = null, e = null;
+            for (const c of corners) { if (c[2] >= T) { if (!f || c[2] > f[2]) f = c; } else if (!e || c[2] < e[2]) e = c; }
+            if (!f || !e) { segs.push([P, Q]); continue; }
+            const dF = nx * (f[0] - Q[0]) + ny * (f[1] - Q[1]);
+            const dE = nx * (e[0] - Q[0]) + ny * (e[1] - Q[1]);
+            segs.push(dF >= dE ? [P, Q] : [Q, P]);
+        }
+    }
+    // enlazar segmentos dirigidos en lazos cerrados
+    const key = (p) => Math.round(p[0] * 16) + '|' + Math.round(p[1] * 16);
+    const startMap = new Map();
+    segs.forEach((sg, i) => { const k = key(sg[0]); if (!startMap.has(k)) startMap.set(k, []); startMap.get(k).push(i); });
+    const used = new Uint8Array(segs.length);
+    const contours = [];
+    for (let i = 0; i < segs.length; i++) {
+        if (used[i]) continue;
+        const loop = [];
+        let cur = i, guard = 0;
+        while (cur !== undefined && !used[cur] && guard < segs.length) {
+            used[cur] = 1;
+            const sg = segs[cur];
+            loop.push(sg[0]);
+            const cands = startMap.get(key(sg[1])) || [];
+            let nxt;
+            for (const ci of cands) if (!used[ci]) { nxt = ci; break; }
+            cur = nxt;
+            guard++;
+        }
+        if (loop.length > 3) contours.push(loop);
+    }
+    return contours;
+}
+
+function distToSeg(p, a, b) {
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const l2 = dx * dx + dy * dy;
+    if (l2 === 0) return Math.hypot(p[0] - a[0], p[1] - a[1]);
+    let t = ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.hypot(p[0] - (a[0] + t * dx), p[1] - (a[1] + t * dy));
+}
+
+function rdp(pts, eps) {
+    if (pts.length < 3) return pts;
+    let maxD = 0, idx = 0;
+    const a = pts[0], b = pts[pts.length - 1];
+    for (let i = 1; i < pts.length - 1; i++) {
+        const d = distToSeg(pts[i], a, b);
+        if (d > maxD) { maxD = d; idx = i; }
+    }
+    if (maxD > eps) {
+        const l = rdp(pts.slice(0, idx + 1), eps);
+        const r = rdp(pts.slice(idx), eps);
+        return l.slice(0, -1).concat(r);
+    }
+    return [pts[0], pts[pts.length - 1]];
+}
+
+function simplifyLoop(pts, eps) {
+    const p = pts.filter((q, i) => i === 0 || q[0] !== pts[i - 1][0] || q[1] !== pts[i - 1][1]);
+    if (p.length < 4) return p;
+    let bi = 0, bj = 1, bd = -1;
+    for (let i = 0; i < p.length; i++) for (let j = i + 1; j < p.length; j++) {
+        const d = (p[i][0] - p[j][0]) ** 2 + (p[i][1] - p[j][1]) ** 2;
+        if (d > bd) { bd = d; bi = i; bj = j; }
+    }
+    const c1 = rdp(p.slice(bi).concat(p.slice(0, bj + 1)), eps);
+    const c2 = rdp(p.slice(bj).concat(p.slice(0, bi + 1)), eps);
+    return c1.slice(0, -1).concat(c2.slice(0, -1));
+}
+
+function signedArea(pts) {
+    let s = 0;
+    for (let i = 0; i < pts.length; i++) {
+        const a = pts[i], b = pts[(i + 1) % pts.length];
+        s += a[0] * b[1] - b[0] * a[1];
+    }
+    return s / 2;
+}
+
+function buildBackShapes(contours, cx, cy, s) {
+    // Clasificar exterior/hueco en coordenadas CANVAS (y-abajo): las letras y la línea
+    // dan contornos de área positiva; los contadores (huecos) dan área negativa.
+    const canv = contours.map(c => ({ c, a: signedArea(c) }));
+    const outers = canv.filter(p => p.a > 0).map(p => ({ pts: p.c, holes: [] }));
+    const holes = canv.filter(p => p.a <= 0).map(p => p.c);
+    // asignar cada hueco al exterior más pequeño que lo contiene (bbox en canvas)
+    for (const h of holes) {
+        const pt = h[0];
+        let best = null;
+        for (const o of outers) {
+            let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+            for (const q of o.pts) { if (q[0] < minX) minX = q[0]; if (q[0] > maxX) maxX = q[0]; if (q[1] < minY) minY = q[1]; if (q[1] > maxY) maxY = q[1]; }
+            if (pt[0] >= minX && pt[0] <= maxX && pt[1] >= minY && pt[1] <= maxY) {
+                if (!best || (maxX - minX) < best.w) best = { o, w: maxX - minX };
+            }
+        }
+        if (best) best.o.holes.push(h);
+    }
+    const conv = (c) => simplifyLoop(c, 0.4).map(p => [(p[0] - cx) * s, -(p[1] - cy) * s]);
+    const shapes = [];
+    for (const o of outers) {
+        const pts = conv(o.pts);
+        const shape = new THREE.Shape();
+        pts.forEach((p, i) => (i === 0 ? shape.moveTo(p[0], p[1]) : shape.lineTo(p[0], p[1])));
+        for (const h of o.holes) {
+            const hp = conv(h);
+            const path = new THREE.Path();
+            hp.forEach((p, i) => (i === 0 ? path.moveTo(p[0], p[1]) : path.lineTo(p[0], p[1])));
+            shape.holes.push(path);
+        }
+        shapes.push(shape);
+    }
+    return shapes;
+}
+
+// ---------- Grabados en arco (REVERSO): fecha (abajo) + AWAKE (arriba) ----------
+// Texto grabado curvado siguiendo la circunferencia del reverso (la cara trasera
+// queda reservada a estos arcos: el frontal lleva el anillo void + el glifo). La
+// fecha va en la parte inferior (día en que se consiguió la insignia; por defecto
+// la fecha ACTUAL, fijada con setDateGrab al desbloquear). El AWAKE va en la parte
+// SUPERIOR con las letras muy separadas (ocupa el 40% del perímetro superior).
+const DATE_RADIUS = 0.88;   // radio del arco de la fecha (pegada al reborde; campo llega a ~0.955)
+const DATE_ARC_DEG = 80;    // apertura angular de la fecha (grados, inferior): más
+                            // longitud de arco ⇒ letras más grandes manteniendo la
+                            // separación extra entre caracteres
+const DATE_SPACING = 0.09;  // separación extra entre caracteres (× tamaño)
+const TOP_RADIUS = 0.84;    // radio del arco del AWAKE superior (pegado al reborde)
+const TOP_ARC_DEG = 118;    // arco ampliado para que las letras, aún más separadas,
+                            // sigan siendo grandes sin chocar con el glifo
+const TOP_SPACING = 0.85;   // aún más separación entre letras (× tamaño)
+
+function syncReliefHeightsToCoinFace() {
+    glyph.position.z = coinFaceZAtRadius(0, true) - RELIEF_FACE_INSET;
+    if (voidRing) voidRing.position.z = coinFaceZAtRadius(VOID_ANCHOR_R, true) - RELIEF_FACE_INSET;
+    if (dateGrab) dateGrab.position.z = coinFaceZAtRadius(DATE_RADIUS, false) - BACK_ARC_PROTRUDE;
+    if (topBrand) topBrand.position.z = coinFaceZAtRadius(TOP_RADIUS, false) - BACK_ARC_PROTRUDE;
+}
+
+dateGrab = new THREE.Mesh(new THREE.BufferGeometry());
+dateGrab.name = 'fecha';
+dateGrab.castShadow = true;
+let dateGrabValue = null;   // null = fecha actual; string = fecha grabada fija
+topBrand = new THREE.Mesh(new THREE.BufferGeometry());
+topBrand.name = 'awake-top-reverso';
+topBrand.castShadow = true;
+function formatToday() {
+    const d = new Date();
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    return dd + ' · ' + mm + ' · ' + d.getFullYear();
+}
+// Dibuja `text` en arco. top=true → arco en la parte SUPERIOR (centrado en 270°);
+// top=false → parte INFERIOR (centrado en 90°). spacing = separación extra entre
+// caracteres en fracción del tamaño de fuente.
+function drawArcText(canvas, size, family, text, radiusUnit, arcDeg, spacing, top) {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const cx = canvas.width / 2, cy = canvas.height / 2;
+    const R = radiusUnit * (canvas.width / 2);
+    ctx.fillStyle = '#fff';
+    ctx.font = '600 ' + size + 'px ' + family;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const chars = [...text];
+    // ancho efectivo por carácter incluyendo la separación extra
+    const adv = chars.map(ch => ctx.measureText(ch).width + spacing * size);
+    const total = adv.reduce((a, b) => a + b, 0);
+    const arcRad = arcDeg * Math.PI / 180;
+    const tC = (top ? 270 : 90) * Math.PI / 180;   // ángulo central del arco
+    // en canvas (y crece hacia abajo): arco superior va de izquierda (tC-arc/2) a
+    // derecha (tC+arc/2); arco inferior al revés (tC+arc/2 → tC-arc/2)
+    const t0 = top ? tC - arcRad / 2 : tC + arcRad / 2;
+    const t1 = top ? tC + arcRad / 2 : tC - arcRad / 2;
+    let acc = 0;
+    for (let i = 0; i < chars.length; i++) {
+        const frac = (acc + adv[i] / 2) / total;
+        const t = t0 + (top ? 1 : -1) * frac * (t0 < t1 ? t1 - t0 : t0 - t1);
+        const x = cx + R * Math.cos(t);
+        const y = cy + R * Math.sin(t);
+        ctx.save();
+        ctx.translate(x, y);
+        ctx.rotate(top ? t + Math.PI / 2 : t - Math.PI / 2); // letras de pie al centro
+        ctx.fillText(chars[i], 0, 0);
+        ctx.restore();
+        acc += adv[i];
+    }
+}
+// Construye el mesh grabado de un texto en arco y lo asigna a `mesh`.
+function buildArcMesh(mesh, text, opts) {
+    const { radius, arcDeg, spacing, top, sizeScale = 1, back = false } = opts;
+    const canvas = document.createElement('canvas');
+    canvas.width = canvas.height = BACK_CANVAS;
+    const R = radius * (canvas.width / 2);
+    const arcLen = R * (arcDeg * Math.PI / 180) * 0.94;
+    const ctx0 = canvas.getContext('2d', { willReadFrequently: true });
+    let size = 170;
+    for (let t = 0; t < 20; t++) {
+        ctx0.font = '600 ' + size + 'px ' + brandFamily;
+        let w = 0; for (const ch of text) w += ctx0.measureText(ch).width + spacing * size;
+        if (w <= arcLen) break;
+        size *= arcLen / w;
+    }
+    size *= sizeScale;
+    drawArcText(canvas, size, brandFamily, text, radius, arcDeg, spacing, top);
+    const bbox = scanAlphaBBox(canvas);
+    if (bbox.maxX < 0) return;
+    const contours = contoursFromCanvas(canvas);
+    const shapes = buildBackShapes(contours, canvas.width / 2, canvas.height / 2, 1 / (canvas.width / 2));
+    if (!shapes.length) return;
+    const geo = new THREE.ExtrudeGeometry(shapes, {
+        depth: 0.008,
+        bevelEnabled: true,
+        bevelThickness: 0.005,
+        bevelSize: 0.003,
+        bevelSegments: 6,
+        curveSegments: 12
+    });
+    if (back) {
+        // Reverso: espejo (X,Z) como hacía el AWAKE central original: al mirar la
+        // moneda por el reverso la lectura queda invertida; -1 en X la compensa y
+        // -1 en Z orienta el relieve hacia la cara trasera.
+        geo.applyMatrix4(new THREE.Matrix4().makeScale(-1, 1, -1));
+    }
+    geo.computeVertexNormals();
+    geo.computeBoundingBox();
+    geo.translate(0, 0, -geo.boundingBox.min.z); // base en z=0 local
+    bakeReliefAO(geo, reliefAOStrength(), 0.54);
+    if (mesh.geometry) mesh.geometry.dispose();
+    mesh.geometry = geo;
+    mesh.material = coinReliefMaterial;
+    mesh.position.z = back
+        ? coinFaceZAtRadius(radius, false) - BACK_ARC_PROTRUDE
+        : coinFaceZAtRadius(radius, true) - RELIEF_FACE_INSET;
+    mesh.visible = true;
+    return { text, verts: geo.attributes.position.count, shapes: shapes.length };
+}
+async function buildDateGrab() {
+    await ensureBrandFont();
+    const r = buildArcMesh(dateGrab, dateGrabValue || formatToday(),
+        { radius: DATE_RADIUS, arcDeg: DATE_ARC_DEG, spacing: DATE_SPACING, top: false, sizeScale: 0.80, back: true });
+    if (r) console.log('Fecha grabada lista: ' + r.text + ' · ' + r.verts + ' verts');
+}
+function setDateGrab(str) { dateGrabValue = str; buildDateGrab(); return dateGrabValue; }
+// AWAKE superior (reverso): letras grandes y separadas, la A centrada arriba.
+// topBrand.position.z se reenrasa con syncReliefHeightsToCoinFace().
+let topArcDegState = TOP_ARC_DEG;
+let topSpacingState = TOP_SPACING;
+async function buildTopBrand() {
+    await ensureBrandFont();
+    const r = buildArcMesh(topBrand, 'AWAKE',
+        { radius: TOP_RADIUS, arcDeg: topArcDegState, spacing: topSpacingState, top: true, back: true });
+    if (r) console.log('AWAKE superior listo: ' + r.verts + ' verts');
+}
+
+// ---------- Turntable: se agrupan SOLO las piezas de la moneda ----------
+// Cuerpo unificado + glifo + AWAKE + fecha giran juntos; cámara, luces, eje,
+// peana y sombra permanecen estáticos (el 'estudio').
+coinGroup = new THREE.Group();
+coinGroup.add(coin, glyph, voidRing, dateGrab, topBrand);
+scene.add(coinGroup);
+
+// ---------- Panel de estudio en vivo ----------
+let coinPresets = null;
+
+const VIEW_PRESETS = {
+    front: { az: 0, polar: 90, dist: 5.0 },
+    back: { az: 180, polar: 90, dist: 5.0 },
+    edge: { az: 45, polar: 72, dist: 5.2 },
+    default: { az: 45, polar: 75, dist: 5.0 }
+};
+
+function setViewPreset(name) {
+    const p = VIEW_PRESETS[name] || VIEW_PRESETS.default;
+    const polar = THREE.MathUtils.degToRad(p.polar);
+    const az = THREE.MathUtils.degToRad(p.az);
+    camera.position.set(
+        p.dist * Math.sin(polar) * Math.sin(az),
+        p.dist * Math.cos(polar),
+        p.dist * Math.sin(polar) * Math.cos(az)
+    );
+    camera.lookAt(0, 0, 0);
+    controls.update();
+}
+
+function studioExportJson() {
+    return JSON.stringify({
+        metalIndex,
+        metal: METALS[metalIndex].id,
+        envMode,
+        studio: Object.assign({}, STUDIO)
+    }, null, 2);
+}
+
+function syncStudioPanelValues() {
+    const map = [
+        ['sl-exposure', 'exposure', 'val-exposure'],
+        ['sl-envMul', 'envMul', 'val-envMul'],
+        ['sl-frontBoost', 'frontBoost', 'val-frontBoost'],
+        ['sl-key', 'key', 'val-key'],
+        ['sl-fill', 'fill', 'val-fill'],
+        ['sl-rakeF', 'rakeF', 'val-rakeF'],
+        ['sl-rakeB', 'rakeB', 'val-rakeB'],
+        ['sl-rim', 'rim', 'val-rim'],
+        ['sl-lightAz', 'lightAz', 'val-lightAz'],
+        ['sl-lightEl', 'lightEl', 'val-lightEl'],
+        ['sl-fieldRoughnessMul', 'fieldRoughnessMul', 'val-fieldRoughnessMul'],
+        ['sl-reliefRoughnessMul', 'reliefRoughnessMul', 'val-reliefRoughnessMul'],
+        ['sl-reliefEnvMul', 'reliefEnvMul', 'val-reliefEnvMul'],
+        ['sl-reliefAO', 'reliefAO', 'val-reliefAO'],
+        ['sl-shadowOpacity', 'shadowOpacity', 'val-shadowOpacity'],
+        ['sl-frontEnvCut', 'frontEnvCut', 'val-frontEnvCut']
+    ];
+    map.forEach(([slId, key, valId]) => {
+        const sl = document.getElementById(slId);
+        const val = document.getElementById(valId);
+        if (sl && STUDIO[key] != null) sl.value = STUDIO[key];
+        if (val && STUDIO[key] != null) val.textContent = Number(STUDIO[key]).toFixed(2);
+    });
+    const ckShadow = document.getElementById('ck-shadow');
+    const ckAdapt = document.getElementById('ck-viewAdaptive');
+    if (ckShadow) ckShadow.checked = STUDIO.shadow;
+    if (ckAdapt) ckAdapt.checked = STUDIO.viewAdaptive;
+}
+
+function rebuildAllReliefs() {
+    setSection(section);
+    rebuildVoidRing();
+    buildDateGrab();
+    buildTopBrand();
+    syncReliefHeightsToCoinFace();
+}
+
+function onStudioSlider(key, value, needsEnvRebuild) {
+    STUDIO[key] = value;
+    if (needsEnvRebuild) rebuildEnvironment();
+    else if (key === 'reliefAO') rebuildAllReliefs();
+    else if (key.startsWith('fieldRough') || key.startsWith('reliefRough') || key.startsWith('reliefEnv')) applyMetal(metalIndex);
+    else applyStudio();
+}
+
+async function loadCoinPresets() {
+    try {
+        const res = await fetch('./coin-presets.json');
+        if (res.ok) coinPresets = await res.json();
+    } catch (e) { coinPresets = null; }
+}
+
+function applyMetalPreset() {
+    if (!coinPresets || !coinPresets.metals) return;
+    const id = METALS[metalIndex].id;
+    const p = coinPresets.metals[id];
+    if (coinPresets.defaults) Object.assign(STUDIO, coinPresets.defaults);
+    if (p && p.studio) Object.assign(STUDIO, p.studio);
+    syncStudioPanelValues();
+    rebuildEnvironment();
+    applyMetal(metalIndex);
+    rebuildAllReliefs();
+}
+
+function initStudioPanel() {
+    const panel = document.getElementById('studio-panel');
+    const toggle = document.getElementById('studio-toggle');
+    toggle.addEventListener('click', () => {
+        const open = panel.classList.toggle('open');
+        toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+
+    document.querySelectorAll('[data-view]').forEach(btn => {
+        btn.addEventListener('click', () => setViewPreset(btn.dataset.view));
+    });
+
+    document.querySelectorAll('#env-mode-btns [data-env]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            envMode = btn.dataset.env;
+            document.querySelectorAll('#env-mode-btns .st-btn').forEach(b =>
+                b.classList.toggle('active', b.dataset.env === envMode));
+            rebuildEnvironment();
+        });
+    });
+
+
+    const sliders = [
+        ['sl-exposure', 'exposure', false],
+        ['sl-envMul', 'envMul', false],
+        ['sl-frontBoost', 'frontBoost', true],
+        ['sl-key', 'key', false],
+        ['sl-fill', 'fill', false],
+        ['sl-rakeF', 'rakeF', false],
+        ['sl-rakeB', 'rakeB', false],
+        ['sl-rim', 'rim', false],
+        ['sl-lightAz', 'lightAz', false],
+        ['sl-lightEl', 'lightEl', false],
+        ['sl-fieldRoughnessMul', 'fieldRoughnessMul', false],
+        ['sl-reliefRoughnessMul', 'reliefRoughnessMul', false],
+        ['sl-reliefEnvMul', 'reliefEnvMul', false],
+        ['sl-reliefAO', 'reliefAO', false],
+        ['sl-shadowOpacity', 'shadowOpacity', false],
+        ['sl-frontEnvCut', 'frontEnvCut', false]
+    ];
+    sliders.forEach(([id, key, envRebuild]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('input', () => onStudioSlider(key, parseFloat(el.value), envRebuild));
+    });
+
+    document.getElementById('ck-shadow')?.addEventListener('change', e => {
+        STUDIO.shadow = e.target.checked;
+        applyStudio();
+    });
+    document.getElementById('ck-viewAdaptive')?.addEventListener('change', e => {
+        STUDIO.viewAdaptive = e.target.checked;
+        applyStudio();
+    });
+
+    document.getElementById('btn-copy-json')?.addEventListener('click', async () => {
+        const json = studioExportJson();
+        const status = document.getElementById('studio-copy-status');
+        try {
+            await navigator.clipboard.writeText(json);
+            if (status) status.textContent = 'JSON copiado al portapapeles';
+        } catch (e) {
+            if (status) status.textContent = json.slice(0, 80) + '…';
+        }
+    });
+
+    document.getElementById('btn-load-preset')?.addEventListener('click', () => applyMetalPreset());
+
+    syncStudioPanelValues();
+    loadCoinPresets().then(() => {
+        if (coinPresets) applyMetalPreset();
+    });
+}
+
+function bootCoinScene() {
+    rebuildEnvironment();
+    applyMetal(metalIndex);
+    setSection('sello');
+    initStudioPanel();
+    syncReliefHeightsToCoinFace();
+    rebuildAllReliefs();
+}
+
+bootCoinScene();
+
+// ---------- Exportación .glb (aviso 4: formato web optimizado) ----------
+// Exporta SOLO las piezas de la moneda (cuerpo + glifo + AWAKE), sin la utilería
+// del estudio (eje, peana, sombra, luces). Transforms limpios en el .glb:
+//   - cuerpo:  identidad (buildCoinSolid genera en unidades reales)
+//   - glifo:   posición z=0.0695 — su escala s (no uniforme) ya está HORNEADA en
+//              la geometría (applyMatrix4 en buildGlyph) → nodo sin escala rara
+//   - AWAKE:   posición z=-0.093 — su espejo -1,1,-1 ya está horneado en la geometría
+const gltfExporter = new GLTFExporter();
+const gltfLoader = new GLTFLoader();
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('./js/vendor/draco/');
+
+async function exportGLB() {
+    // Esperar a que los relieves async estén construidos (fuente cargando).
+    for (let i = 0; i < 50 && !(voidRingGeo && dateGrab.geometry && dateGrab.geometry.attributes.position
+        && topBrand.geometry && topBrand.geometry.attributes.position); i++) {
+        await new Promise(r => setTimeout(r, 100));
+    }
+    const exportScene = new THREE.Scene();
+    exportScene.add(coin.clone(false), glyph.clone(false), voidRing.clone(false), dateGrab.clone(false), topBrand.clone(false));
+    const glb = await new Promise((res, rej) =>
+        gltfExporter.parse(exportScene, res, rej, { binary: true }));
+    // Guardar también en disco (dev): proto/out/awake-coin.glb para el
+    // post-proceso (compresión Draco). Silencioso; no afecta a producción.
+    try { await fetch('/__save/awake-coin.glb', { method: 'POST', body: glb }); } catch (e) {}
+    const blob = new Blob([glb], { type: 'model/gltf-binary' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'awake-coin.glb'; a.click();
+    URL.revokeObjectURL(url);
+    return glb;
+}
+
+// Verificación round-trip (aviso 4): recarga el .glb con GLTFLoader y lo muestra
+// en el MISMO estudio; permite comparar por píxeles con el render procedural.
+// opts.draco=true usa DRACOLoader (decoder vendored) para validar la variante
+// comprimida con KHR_draco_mesh_compression.
+function verifyGLB(glb, opts) {
+    const useDraco = !!(opts && opts.draco);
+    const loader = useDraco
+        ? (() => { const l = new GLTFLoader(); l.setDRACOLoader(dracoLoader); return l; })()
+        : gltfLoader;
+    return new Promise((resolve, reject) => {
+        loader.parse(glb, '', (gltf) => {
+            const loaded = gltf.scene;
+            const info = { meshes: [], totalTris: 0, totalVerts: 0 };
+            loaded.traverse(o => {
+                if (o.isMesh) {
+                    const g = o.geometry;
+                    const t = g.index ? g.index.count / 3 : g.attributes.position.count / 3;
+                    info.meshes.push({ name: o.name || '(sin nombre)', tris: Math.round(t) });
+                    info.totalTris += t;
+                    info.totalVerts += g.attributes.position.count;
+                }
+            });
+            // Ocultar la moneda procedural y mostrar la cargada del .glb
+            const prevVis = {
+                coin: coin.visible, glyph: glyph.visible, ring: voidRing.visible,
+                date: dateGrab.visible, top: topBrand.visible
+            };
+            coin.visible = false; glyph.visible = false; voidRing.visible = false;
+            dateGrab.visible = false; topBrand.visible = false;
+            const glbGroup = new THREE.Group();
+            glbGroup.add(loaded);
+            scene.add(glbGroup);
+            let matInfo = null;
+            loaded.traverse(o => {
+                if (o.isMesh && !matInfo) {
+                    const m = o.material;
+                    matInfo = {
+                        type: m.type,
+                        metalness: m.metalness,
+                        roughness: m.roughness,
+                        color: '#' + m.color.getHexString(),
+                        doubleSided: m.side === THREE.DoubleSide
+                    };
+                }
+            });
+            window.__glbTest = { group: glbGroup, prevVis, info, matInfo };
+            resolve({ info, matInfo, bytes: glb.byteLength, draco: useDraco });
+        }, reject);
+    });
+}
+
+// Verifica la variante comprimida guardada en disco (proto/out/awake-coin-draco.glb).
+async function verifyGLBDraco() {
+    const res = await fetch('/proto/out/awake-coin-draco.glb');
+    if (!res.ok) throw new Error('No existe el .glb Draco en disco: ' + res.status);
+    const buf = await res.arrayBuffer();
+    return verifyGLB(buf, { draco: true });
+}
+
+function restoreGLBTest() {
+    const t = window.__glbTest;
+    if (!t) return 'sin test activo';
+    scene.remove(t.group);
+    t.group.traverse(o => { if (o.isMesh) { o.geometry.dispose(); if (o.material) o.material.dispose(); } });
+    coin.visible = t.prevVis.coin; glyph.visible = t.prevVis.glyph; voidRing.visible = t.prevVis.ring;
+    dateGrab.visible = t.prevVis.date; topBrand.visible = t.prevVis.top;
+    window.__glbTest = null;
+    return 'restaurado';
+}
+
+document.getElementById('export').addEventListener('click', async () => {
+    const btn = document.getElementById('export');
+    btn.disabled = true;
+    try {
+        const glb = await exportGLB();
+        console.log('GLB exportado: ' + (glb.byteLength / 1024).toFixed(1) + ' KB (binario, 1 solo archivo)');
+    } catch (e) { console.error('Error al exportar .glb', e); }
+    btn.disabled = false;
+});
+
+// ---------- Resize ----------
+function resize() {
+    const w = stage.clientWidth, h = stage.clientHeight;
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+    renderer.setSize(w, h);
+}
+window.addEventListener('resize', resize);
+
+// ---------- Hook de depuración (fase de diseño) ----------
+window.__coin3d = { camera, controls, scene, coin, glyph, voidRing, voidRingGeo, rebuildVoidRing, dateGrab, topBrand, setDateGrab, renderer, applyMetal, applyStudio, STUDIO, rebuildEnvironment, setViewPreset, METALS, setSection, GLYPHS, THREE, COIN_RELIEF, COIN_CFG, rebuildCoinGeometry, coinGroup, exportGLB, verifyGLB, verifyGLBDraco, restoreGLBTest, gltfExporter, debugBack: { contoursFromCanvas, buildBackShapes, scanAlphaBBox, drawBrand, BACK_TARGET_W, BACK_CANVAS } };
+
+// ---------- Bucle ----------
+renderer.setAnimationLoop(() => {
+    const now = performance.now();
+    const dt = Math.min((now - lastT) / 1000, 0.05);   // dt acotado
+    lastT = now;
+    if (coinSpinning) coinGroup.rotation.y += COIN_SPIN * dt;
+    applyViewAdaptiveLighting();
+    controls.update();
+    renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>
