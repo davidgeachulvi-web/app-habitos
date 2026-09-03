@@ -4,6 +4,8 @@
 **Alcance:** auditoría arquitectónica de la base existente al nivel de stack, capas, configuración y riesgos. La auditoría **módulo a módulo** (con lectura profunda de código y refactor) es el Paso 5; aquí se documenta lo verificado en estructura/archivos y lo pendiente de verificar.
 **Historial:** v1.2 (sept 2026) — resultados de la auditoría de módulos (Paso 5) incorporados en § 9; peso real del visor 3D corregido (~487 KB, no ~800 KB). v1.1 (sept 2026) — corrección del supuesto de SDK del MVP (ADR 3), ADR 8 (límites freemium IN 9) y ADR 9 (telemetría del piloto 3.5), checklist F1 (telemetría, encuesta, límites), discrepancia de cifras de `app.js` registrada en § 9, glitch del diagrama corregido. v1.0 (sept 2026) — versión inicial.
 
+**NOTA (03/09/2026 · auditoría externa):** las cifras de líneas y rutas de este documento son **históricas** y han quedado desfasadas del disco. Cifras verificadas hoy: `app.js` **10.041** líneas (no 9.473), `app.css` **6.546** (no 5.992), `index.html` **1.455** (no 1.342), `habits.js` **3.844** en `www/js/domain/habits.js` (no 3.714 en `www/js/habits.js`), `chat.js` **1.745** en `www/js/social/chat.js`. Inventario real y auditoría completa en `docs/07-auditoria-externa.md` (§ 2).
+
 ---
 
 ## 1. Resumen ejecutivo
