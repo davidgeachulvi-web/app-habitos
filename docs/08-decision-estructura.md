@@ -25,7 +25,7 @@ La Opción B (Vite + TypeScript + Vitest) queda **descartada por ahora** y se re
 | Guardarraíl | Estado | Nota |
 |---|---|---|
 | Repositorio Git con historia | ✅ Aplicado (commits base + saneamiento + docs) | Ver `docs/07` § 9 |
-| Remoto privado (`app-habitos`) | ✅ Aplicado | GitHub, cuenta del mantenedor |
+| Remoto `app-habitos` | ✅ Aplicado | GitHub, cuenta del mantenedor · **público** (requisito del plan free de GitHub para poder proteger ramas) |
 | Protección de `main` | ✅ Aplicado | Push directo bloqueado; **PR obligatorio + CI verde** |
 | CI (GitHub Actions) | ✅ Aplicado | `npm test` + `check-sintaxis` + `check-imports` en cada push/PR |
 | Gate local `npm run check` | ✅ Aplicado | Sintaxis + grafo 3D sin esperar al CI |
