@@ -4,7 +4,7 @@
 
 **Stack:** SPA en JavaScript puro (sin build step) · PWA (service worker) · Capacitor 8 (Android/iOS) · Supabase (Postgres + RLS + Realtime + Edge Function) · Vercel · analítica local-first.
 
-**Control de versiones:** Git iniciado el 3 de septiembre de 2026 (commit base `66a265e` + saneamiento `22359cb`), remoto privado `app-habitos` en GitHub, `main` protegida (PR obligatorio + CI verde). Decisión de estructuración (Opción A) en `docs/08-decision-estructura.md`; auditoría completa en `docs/07-auditoria-externa.md`.
+**Control de versiones:** Git iniciado el 3 de septiembre de 2026 (commit base `66a265e` + saneamiento `22359cb`), remoto **público** `app-habitos` en GitHub (público para poder activar la protección de rama en el plan free), `main` protegida (PR obligatorio + CI verde + sin force-push). Decisión de estructuración (Opción A) en `docs/08-decision-estructura.md`; auditoría completa en `docs/07-auditoria-externa.md`.
 
 **Comandos (raíz):**
 - `npm run dev` — servidor local de `www/` (SPA-fallback)
@@ -13,7 +13,7 @@
 - `npm run deploy:web` — check-imports → bump SW → deploy Vercel → cap:copy
 - `npm run cap:copy` — sincroniza `www/` en `ios/` y `android/`
 
-**Flujo de trabajo:** ningún cambio entra en `main` sin PR revisado y CI verde (`.github/workflows/ci.yml`). Ver `docs/08-decision-estructura.md`.
+**Flujo de trabajo:** ningún cambio entra en `main` sin PR revisado y CI verde (`.github/workflows/ci.yml`). Los cambios se desarrollan en una rama y se integran con un PR desde GitHub. Ver `docs/08-decision-estructura.md`.
 
 **Estructura:**
 - `www/` — la app (fuente de verdad)
